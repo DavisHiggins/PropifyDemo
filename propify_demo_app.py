@@ -408,7 +408,7 @@ def render_demo_banner():
                 multi-leg parlay analysis (2–4 legs), and a complete performance dashboard.
                 <br><br>
                 This demo generates <strong>simulated outputs</strong> using a deterministic placeholder model — it is
-                not connected to any real data source. It exists to demonstrate the product's UI, output structure, and design.
+                not connected to any real data source. It exists to demonstrate the product's UI, output structure, and design, prior to Propify's official release.
             </div>
         </div>
         """,
@@ -564,8 +564,8 @@ def render_single_section():
     st.markdown(
         """
         <div style="margin-top:8px;font-size:0.88rem;color:#4a5568;font-style:italic;padding:4px 2px;">
-            This data generation closely resembles the layout of some data points displayed in the
-            private (soon to be monetized) Propify analytics platform.
+            This data generation resembles the layout of some data points displayed in the
+            private, soon to be monetized, official Propify platform.
         </div>
         """,
         unsafe_allow_html=True,
@@ -733,22 +733,23 @@ with tab_about:
         Propify is a privately developed NBA player prop analytics platform designed to identify
         statistically favorable betting opportunities through probabilistic modeling and contextual game analysis.
 
-        **What the production system includes:**
-        - A custom probabilistic projection engine using real NBA data via nba_api
-        - Over/under probability outputs derived from normal distribution modeling
-        - Confidence scoring across five tiers (Low → High)
-        - Matchup-based adjustments using opponent allowance data
+        **What the Propify production system includes:**
+        - A custom probabilistic projection engine using real NBA data
+        - Over/under probability outputs derived from engine-tailored modeling techniques
+        - Confidence scoring
+        - Matchup-based adjustments
         - Volatility and minutes-risk metrics
-        - Recent-form weighting with trimmed mean calculations
+        - Trimmed mean calculations for accuracy
         - 2–4 leg parlay builder with compounded probability outputs
-        - Full per-user pick tracking and performance dashboard (Supabase backend)
+        - Full per-user pick tracking and performance dashboard
         - Row-level security ensuring no shared data between accounts
+        - Dozens of currently private calculations, features, filters, details, visualizations, customization settings, and capabilities
 
         **What this demo does not include:**
-        - Any real NBA data or live API connections
+        - Any real NBA data or live connections
         - The proprietary model logic, weights, or feature engineering
         - User authentication or pick tracking
-        - Parlay analysis sections
+        - Parlay analysis
         - Backend infrastructure
 
         This demo is intentionally limited to the Single Prop Analyzer tab with
