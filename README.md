@@ -8,7 +8,6 @@ This repository exists for:
 - product/UI demonstration
 - open source inspiration
 - personal profile display
-- public feedback & perception
 
 It is intentionally limited and does **not** expose the proprietary production system.
 
@@ -35,13 +34,6 @@ It is intentionally limited and does **not** expose the proprietary production s
 - NumPy
 - Pandas
 - Matplotlib
-
-## Run locally
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
 
 ## Notes
 
