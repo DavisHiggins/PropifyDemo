@@ -6,428 +6,754 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
+from streamlit.components.v1 import html as st_html
 
 st.set_page_config(page_title="Propify (Demo)", page_icon="📈", layout="wide")
 
-# -------------------------
-# Helpers
-# -------------------------
+# ─────────────────────────────────────────
+# Constants
+# ─────────────────────────────────────────
+TARHEEL_BLUE = "#7BAFD4"
+COLORS = {
+    "strong": "#d9f2e3",
+    "strong_dark": "#1f7a4d",
+    "neutral": "#fff5cf",
+    "neutral_dark": "#8a6d1d",
+    "risky": "#f9d8d8",
+    "risky_dark": "#9b2c2c",
+    "info": "#d9ebfa",
+    "info_dark": "#1f5f99",
+    "surface": "#ffffff",
+    "border": "#d9e6f2",
+}
 
-def stable_rng(*parts: str) -> np.random.Generator:
+STAT_OPTIONS = [
+    "Points", "Rebounds", "Assists", "FGM", "FGA", "3PM", "3PA",
+    "Steals", "Blocks", "Stocks", "Turnovers", "Fouls", "FTM", "FTA",
+    "Fantasy", "PRA", "RA", "PA", "PR",
+]
+
+RISK_FLAGS_BY_STAT = {
+    "Assists":    ["Assist-based value depends on teammate shot conversion"],
+    "PA":         ["Assist-based value depends on teammate shot conversion"],
+    "RA":         ["Rebounding value can swing with game script and shot profile"],
+    "PRA":        ["Assist-based value depends on teammate shot conversion",
+                   "Rebounding value can swing with game script and shot profile"],
+    "Steals":     ["Stocks props are highly volatile from game to game"],
+    "Blocks":     ["Stocks props are highly volatile from game to game"],
+    "Stocks":     ["Stocks props are highly volatile from game to game"],
+    "Turnovers":  ["Turnovers depend heavily on ball-handling role and pressure"],
+    "Fouls":      ["Fouls are heavily driven by whistle variance and matchup style"],
+    "FTM":        ["Free throws made depend on whistle rate and shooting attempts"],
+    "FGA":        ["Attempt props depend strongly on role, minutes, and shot volume"],
+    "3PA":        ["Attempt props depend strongly on role, minutes, and shot volume"],
+    "FGM":        ["Made-shot props depend on both volume and shooting efficiency"],
+    "3PM":        ["Made-shot props depend on both volume and shooting efficiency"],
+}
+
+
+# ─────────────────────────────────────────
+# Demo model (deterministic from inputs)
+# ─────────────────────────────────────────
+def stable_rng(*parts):
     seed_str = "|".join(str(p).strip().lower() for p in parts)
-    seed = int(hashlib.sha256(seed_str.encode()).hexdigest()[:16], 16) % (2**32)
+    seed = int(hashlib.sha256(seed_str.encode()).hexdigest()[:16], 16) % (2 ** 32)
     return np.random.default_rng(seed)
 
 
-def demo_model(player: str, stat: str, line: float, opponent: str):
-    rng = stable_rng(player, stat, line, opponent)
+STAT_BASE = {
+    "Points": 23.5, "Rebounds": 8.4, "Assists": 6.1,
+    "PRA": 36.5, "PA": 29.3, "PR": 31.1, "RA": 14.5,
+    "FGM": 9.1, "FGA": 19.4, "3PM": 2.7, "3PA": 6.3,
+    "Steals": 1.3, "Blocks": 0.9, "Stocks": 2.2,
+    "Turnovers": 2.8, "Fouls": 2.5, "FTM": 4.1, "FTA": 5.2,
+    "Fantasy": 42.0,
+}
+STAT_VOL = {
+    "Points": 6.5, "Rebounds": 3.2, "Assists": 2.8,
+    "PRA": 7.2, "PA": 6.1, "PR": 6.0, "RA": 3.9,
+    "FGM": 3.1, "FGA": 5.2, "3PM": 1.4, "3PA": 2.6,
+    "Steals": 0.9, "Blocks": 0.8, "Stocks": 1.4,
+    "Turnovers": 1.3, "Fouls": 1.2, "FTM": 1.8, "FTA": 2.1,
+    "Fantasy": 10.2,
+}
 
-    stat_base_map = {
-        "Points": 23.5,
-        "Rebounds": 8.4,
-        "Assists": 6.1,
-        "PRA": 36.5,
-        "Points + Assists": 29.3,
-        "Points + Rebounds": 31.1,
-    }
-    volatility_map = {
-        "Points": 6.5,
-        "Rebounds": 3.2,
-        "Assists": 2.8,
-        "PRA": 7.2,
-        "Points + Assists": 6.1,
-        "Points + Rebounds": 6.0,
-    }
 
-    base = stat_base_map.get(stat, 20.0)
-    vol = volatility_map.get(stat, 5.0)
+def demo_model(player: str, stat: str, line: float, opponent: str) -> dict:
+    rng = stable_rng(player, stat, str(line), opponent)
+    base = STAT_BASE.get(stat, 20.0)
+    vol  = STAT_VOL.get(stat, 5.0)
 
     player_bump = ((sum(ord(c) for c in player) % 17) - 8) * 0.33 if player else 0.0
-    opp_drag = ((sum(ord(c) for c in opponent) % 11) - 5) * 0.18 if opponent else 0.0
-    noise = rng.normal(0, 0.9)
+    opp_drag    = ((sum(ord(c) for c in opponent) % 11) - 5) * 0.18 if opponent else 0.0
+    noise       = rng.normal(0, 0.8)
 
-    projection = max(0.5, base + player_bump - opp_drag + noise)
-    z = (projection - line) / max(vol, 1.0)
-    over_prob = 1 / (1 + math.exp(-1.2 * z))
-    over_prob = min(0.94, max(0.06, over_prob))
-    under_prob = 1 - over_prob
+    projection  = max(0.5, round(base + player_bump - opp_drag + noise, 2))
+    z           = (projection - line) / max(vol, 1.0)
+    over_prob   = 1 / (1 + math.exp(-1.2 * z))
+    over_prob   = min(0.93, max(0.07, over_prob))
+    under_prob  = 1 - over_prob
+    push_prob   = round(rng.uniform(0.01, 0.06), 3)
 
-    trend = np.clip(rng.normal(loc=projection, scale=vol * 0.55, size=10), 0, None)
-    trend = np.round(trend, 1)
-
-    x = np.linspace(max(0, projection - 3.5 * vol), projection + 3.5 * vol, 300)
-    y = np.exp(-0.5 * ((x - projection) / vol) ** 2)
-    y /= np.trapz(y, x)
+    floor_proj   = round(max(0, projection - 0.84 * vol), 2)
+    ceil_proj    = round(projection + 0.84 * vol, 2)
+    median_proj  = round(projection + rng.normal(0, 0.3), 2)
 
     confidence_raw = abs(over_prob - 0.5) * 200
     if confidence_raw >= 30:
-        confidence = "High"
+        confidence, conf_num = "High", 5
     elif confidence_raw >= 22:
-        confidence = "Medium-High"
+        confidence, conf_num = "Medium-High", 4
     elif confidence_raw >= 14:
-        confidence = "Medium"
+        confidence, conf_num = "Medium", 3
     else:
-        confidence = "Low-Medium"
+        confidence, conf_num = "Low-Medium", 2
+
+    lean = "OVER" if over_prob > 0.56 else ("UNDER" if under_prob > 0.56 else "NEUTRAL")
+
+    # Scores
+    recent_form_score   = int(rng.integers(42, 91))
+    matchup_score       = int(rng.integers(38, 88))
+    volatility_score    = int(rng.integers(12, 62))
+    minutes_risk_score  = int(rng.integers(8, 48))
+
+    # Hit rates
+    def fake_hit_rate(window):
+        base_hr = over_prob + rng.normal(0, 0.07)
+        return round(min(1.0, max(0.0, base_hr)) * 100, 1)
+
+    # Averages
+    season_avg     = round(projection + rng.normal(0.4, 1.1), 2)
+    season_median  = round(season_avg - rng.uniform(0.1, 0.8), 2)
+    last5_avg      = round(projection + rng.normal(0.2, 1.4), 2)
+    last10_avg     = round(projection + rng.normal(0.3, 1.0), 2)
+    last15_avg     = round(projection + rng.normal(0.35, 0.9), 2)
+    wt_recent_avg  = round(projection + rng.normal(0.15, 0.6), 2)
+
+    proj_minutes   = round(30 + rng.normal(2, 3), 1)
+    rest_days      = int(rng.integers(1, 4))
+    pace_proxy     = round(112 + rng.normal(0, 4), 1)
+    min_mult       = round(1.0 + rng.normal(0, 0.05), 3)
+    matchup_mult   = round(1.0 + rng.normal(0, 0.06), 3)
+    opp_allow      = round(season_avg + rng.normal(0.5, 1.5), 2)
+    role_label     = rng.choice(["Stable Role", "Expanded Role", "Reduced Role"])
+    role_alert     = "None"
+
+    # Recent sample table
+    n_games = 20
+    game_vals = np.clip(rng.normal(loc=projection, scale=vol * 0.85, size=n_games), 0, None)
+    game_vals = np.round(game_vals, 1)
+    dates = pd.date_range(end=pd.Timestamp.today(), periods=n_games, freq="3D")[::-1]
+    opps  = rng.choice(
+        ["LAL","BOS","MIA","GSW","CHI","DAL","PHX","DEN","MIL","ATL","NYK","PHI"],
+        size=n_games, replace=True
+    )
+    home_away_arr = rng.choice(["Home","Away"], size=n_games)
+    mins_arr = np.clip(rng.normal(proj_minutes, 3, size=n_games), 15, 42).round(1)
+
+    recent_df = pd.DataFrame({
+        "Date":    [d.strftime("%b %d") for d in dates],
+        "Opp":     opps,
+        "H/A":     home_away_arr,
+        "MIN":     mins_arr,
+        stat:      game_vals,
+        "vs Line": ["✅" if v > line else "❌" for v in game_vals],
+    })
+
+    risks = RISK_FLAGS_BY_STAT.get(stat, [])
+    if volatility_score >= 40:
+        risks = risks + ["High game-to-game volatility"]
+    if minutes_risk_score >= 30:
+        risks = risks + ["Minutes instability"]
+    if rest_days == 0:
+        risks = risks + ["Back-to-back fatigue risk"]
+    if not risks:
+        risks = ["None identified"]
 
     return {
-        "projection": round(projection, 1),
+        "projection": projection,
+        "median_projection": median_proj,
+        "floor_projection": floor_proj,
+        "ceiling_projection": ceil_proj,
         "over_prob": round(over_prob * 100, 1),
         "under_prob": round(under_prob * 100, 1),
-        "trend": trend,
-        "dist_x": x,
-        "dist_y": y,
+        "push_prob": round(push_prob * 100, 1),
+        "lean": lean,
         "confidence": confidence,
-        "lean": "OVER" if over_prob > 0.56 else "UNDER" if under_prob > 0.56 else "NEUTRAL",
-        "floor": round(max(0, projection - 0.84 * vol), 1),
-        "ceiling": round(projection + 0.84 * vol, 1),
-        "volatility": round(vol, 1),
+        "confidence_score_numeric": conf_num,
+        "recent_form_score": recent_form_score,
+        "matchup_score": matchup_score,
+        "volatility_score": volatility_score,
+        "minutes_risk_score": minutes_risk_score,
+        "season_average": season_avg,
+        "season_median": season_median,
+        "last5_average": last5_avg,
+        "last10_average": last10_avg,
+        "last15_average": last15_avg,
+        "weighted_recent_average": wt_recent_avg,
+        "last5_hit_rate": f"{fake_hit_rate(5)}%",
+        "last10_hit_rate": f"{fake_hit_rate(10)}%",
+        "last15_hit_rate": f"{fake_hit_rate(15)}%",
+        "season_hit_rate": f"{fake_hit_rate(99)}%",
+        "projected_minutes": proj_minutes,
+        "rest_days": rest_days,
+        "home_away": "Neutral",
+        "pace_proxy": pace_proxy,
+        "minutes_multiplier": min_mult,
+        "matchup_multiplier": matchup_mult,
+        "opponent_allowance_proxy": opp_allow,
+        "role_stability_label": role_label,
+        "role_change_alert": role_alert,
+        "risks": risks,
+        "recent_games_df": recent_df,
+        "stat_label": stat.upper(),
     }
 
 
-def fig_to_png_bytes(fig) -> bytes:
+# ─────────────────────────────────────────
+# Chart helpers
+# ─────────────────────────────────────────
+def fig_to_png(fig) -> bytes:
     buf = BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor=fig.get_facecolor())
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close(fig)
     buf.seek(0)
-    return buf.getvalue()
+    return buf.read()
 
 
-def make_trend_chart(values: np.ndarray, line: float, stat: str) -> bytes:
-    fig, ax = plt.subplots(figsize=(7.4, 3.0))
-    fig.patch.set_facecolor("#0f172a")
-    ax.set_facecolor("#0f172a")
+def make_trend_chart(values, line: float, stat: str) -> bytes:
+    fig, ax = plt.subplots(figsize=(8, 3.2))
+    fig.patch.set_facecolor("#ffffff")
+    ax.set_facecolor("#f5fafe")
 
     games = np.arange(1, len(values) + 1)
-    ax.plot(games, values, linewidth=2.7, marker="o", markersize=4)
-    ax.axhline(line, linestyle="--", linewidth=1.8)
-    ax.fill_between(games, values, np.min(values) - 2, alpha=0.12)
+    ax.plot(games, values, linewidth=2.6, marker="o", markersize=4.2,
+            color=TARHEEL_BLUE, label=stat)
+    ax.axhline(line, linestyle="--", linewidth=1.8, color="#e74c3c", label=f"Line: {line}")
+    ax.fill_between(games, values, np.min(values) - 2, alpha=0.10, color=TARHEEL_BLUE)
 
     ax.spines[:].set_visible(False)
-    ax.tick_params(colors="#cbd5e1", labelsize=9)
-    ax.grid(alpha=0.18)
-    ax.set_title(f"Last 10 Demo Games — {stat}", color="#e2e8f0", fontsize=12, fontweight="bold", loc="left")
-    ax.set_xlabel("Game", color="#94a3b8")
-    ax.set_ylabel("Output", color="#94a3b8")
-    return fig_to_png_bytes(fig)
+    ax.tick_params(colors="#475569", labelsize=9)
+    ax.grid(alpha=0.18, color="#d9e6f2")
+    ax.set_title(f"Recent Sample — {stat}", color="#122235", fontsize=11.5,
+                 fontweight="bold", loc="left")
+    ax.set_xlabel("Game (most recent → right)", color="#7a8fa0", fontsize=8.5)
+    ax.set_ylabel(stat, color="#7a8fa0", fontsize=8.5)
+    ax.legend(fontsize=8.5, framealpha=0.5)
+    fig.tight_layout()
+    return fig_to_png(fig)
 
 
-def make_distribution_chart(x: np.ndarray, y: np.ndarray, line: float, projection: float) -> bytes:
-    fig, ax = plt.subplots(figsize=(7.4, 3.0))
-    fig.patch.set_facecolor("#0f172a")
-    ax.set_facecolor("#0f172a")
+def make_distribution_chart(projection: float, vol: float, line: float, stat: str) -> bytes:
+    x = np.linspace(max(0, projection - 4 * vol), projection + 4 * vol, 400)
+    y = np.exp(-0.5 * ((x - projection) / vol) ** 2)
+    y /= np.trapz(y, x)
 
-    ax.plot(x, y, linewidth=2.8)
-    ax.fill_between(x, y, alpha=0.14)
-    ax.axvline(line, linestyle="--", linewidth=1.8)
-    ax.axvline(projection, linestyle=":", linewidth=2.0)
+    fig, ax = plt.subplots(figsize=(8, 3.2))
+    fig.patch.set_facecolor("#ffffff")
+    ax.set_facecolor("#f5fafe")
+
+    # shade over/under
+    ax.fill_between(x, y, where=(x >= line), alpha=0.22, color="#27ae60", label="Over")
+    ax.fill_between(x, y, where=(x < line),  alpha=0.18, color="#e74c3c", label="Under")
+    ax.plot(x, y, linewidth=2.6, color=TARHEEL_BLUE)
+    ax.axvline(line,       linestyle="--", linewidth=1.8, color="#e74c3c",  label=f"Line: {line}")
+    ax.axvline(projection, linestyle=":",  linewidth=2.0, color="#17344f", label=f"Projection: {projection}")
 
     ax.spines[:].set_visible(False)
-    ax.tick_params(colors="#cbd5e1", labelsize=9)
-    ax.grid(alpha=0.18)
-    ax.set_title("Outcome Distribution (Demo)", color="#e2e8f0", fontsize=12, fontweight="bold", loc="left")
-    ax.set_xlabel("Projected Output", color="#94a3b8")
-    ax.set_ylabel("Density", color="#94a3b8")
-    return fig_to_png_bytes(fig)
+    ax.tick_params(colors="#475569", labelsize=9)
+    ax.grid(alpha=0.18, color="#d9e6f2")
+    ax.set_title(f"Outcome Distribution — {stat}", color="#122235", fontsize=11.5,
+                 fontweight="bold", loc="left")
+    ax.set_xlabel("Projected Output", color="#7a8fa0", fontsize=8.5)
+    ax.set_ylabel("Density", color="#7a8fa0", fontsize=8.5)
+    ax.legend(fontsize=8.5, framealpha=0.5)
+    fig.tight_layout()
+    return fig_to_png(fig)
 
 
-# -------------------------
-# Styling
-# -------------------------
-logo_svg = """
-<svg width="88" height="88" viewBox="0 0 88 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="8" y1="8" x2="80" y2="80" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F172A"/>
-      <stop offset="1" stop-color="#1E293B"/>
-    </linearGradient>
-    <linearGradient id="bar" x1="18" y1="65" x2="68" y2="20" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#10B981"/>
-      <stop offset="1" stop-color="#A3E635"/>
-    </linearGradient>
-  </defs>
-  <rect x="7" y="7" width="74" height="74" rx="22" fill="url(#bg)"/>
-  <rect x="17" y="50" width="8" height="18" rx="2.5" fill="url(#bar)"/>
-  <rect x="29" y="42" width="8" height="26" rx="2.5" fill="url(#bar)"/>
-  <rect x="41" y="30" width="8" height="38" rx="2.5" fill="url(#bar)"/>
-  <rect x="53" y="21" width="8" height="47" rx="2.5" fill="url(#bar)"/>
-  <path d="M18 38C29 40 40 37 49 27C53 23 58 18 69 18" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
-  <path d="M62 13H71V22" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-"""
+# ─────────────────────────────────────────
+# UI Components
+# ─────────────────────────────────────────
+def inject_css():
+    st.markdown(
+        f"""
+        <style>
+        html, body, [class*="css"] {{
+            font-family: "Segoe UI", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
+        }}
+        .stApp {{ background: #f5fafe; }}
+        .block-container {{ padding-top: 1.3rem; padding-bottom: 2rem; }}
 
-st.markdown(
-    f"""
-    <style>
-        :root {{
-            --bg: #0f172a;
-            --bg2: #111827;
-            --card: rgba(255,255,255,0.82);
-            --text: #0f172a;
-            --muted: #475569;
-            --border: rgba(148,163,184,0.22);
-            --green: #10b981;
-            --lime: #a3e635;
-            --blue: #1d4ed8;
+        div[data-testid="stMetric"] {{
+            background: white;
+            border: 1px solid rgba(0,0,0,0.06);
+            padding: 10px 12px;
+            border-radius: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
         }}
-        .stApp {{
-            background: radial-gradient(circle at top left, rgba(16,185,129,0.08), transparent 26%),
-                        radial-gradient(circle at top right, rgba(59,130,246,0.08), transparent 26%),
-                        linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-        }}
-        .main .block-container {{
-            max-width: 1160px;
-            padding-top: 2.2rem;
-            padding-bottom: 3rem;
-        }}
-        .hero {{
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 28px;
-            padding: 28px 32px;
-            color: white;
-            box-shadow: 0 20px 50px rgba(15,23,42,0.22);
-        }}
-        .hero-grid {{
-            display: grid;
-            grid-template-columns: 96px 1fr;
-            gap: 20px;
-            align-items: center;
-        }}
-        .logo-box {{
-            width: 88px;
-            height: 88px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            filter: drop-shadow(0 8px 18px rgba(0,0,0,0.25));
-        }}
-        .hero-title {{
-            font-size: 2.2rem;
-            font-weight: 800;
-            line-height: 1.1;
-            margin: 0;
-            letter-spacing: -0.02em;
-        }}
-        .hero-subtitle {{
-            margin-top: 8px;
-            color: #cbd5e1;
-            font-size: 1.05rem;
-        }}
-        .pill-row {{
-            display:flex;
-            gap:10px;
-            flex-wrap:wrap;
-            margin-top:16px;
-        }}
-        .pill {{
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.09);
-            color: #e2e8f0;
-            padding: 8px 12px;
-            border-radius: 999px;
-            font-size: 0.92rem;
-        }}
-        .section-card {{
-            background: rgba(255,255,255,0.80);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 22px 22px 10px 22px;
-            box-shadow: 0 14px 34px rgba(15,23,42,0.08);
-        }}
-        .notice {{
-            background: linear-gradient(135deg, rgba(16,185,129,0.10), rgba(163,230,53,0.12));
-            border: 1px solid rgba(16,185,129,0.18);
+
+        .primary-card {{
+            background: white;
+            border: 1px solid rgba(0,0,0,0.06);
             border-radius: 18px;
-            padding: 14px 16px;
-            color: #14532d;
-            font-weight: 600;
+            padding: 16px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+            min-height: 110px;
         }}
-        .small-muted {{
-            color:#64748b;
-            font-size:0.96rem;
+        .primary-card .label {{
+            font-size: 0.92rem; font-weight: 700; opacity: 0.78; color: #122235;
         }}
-        .metric-card {{
-            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
-            border: 1px solid rgba(148,163,184,0.18);
-            border-radius: 20px;
-            padding: 18px;
-            box-shadow: 0 12px 28px rgba(15,23,42,0.06);
+        .primary-card .value {{
+            font-size: 2.25rem; font-weight: 900; margin-top: 6px;
+            line-height: 1.05; color: #122235;
         }}
-        .metric-label {{
-            font-size: 0.88rem;
-            color: #64748b;
-            margin-bottom: 6px;
-            font-weight: 600;
-        }}
-        .metric-value {{
-            font-size: 2.0rem;
-            color: #0f172a;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-        }}
-        .metric-sub {{
-            font-size: 0.88rem;
-            color:#475569;
-            margin-top: 4px;
-        }}
-        .lean-box {{
-            background: linear-gradient(90deg, #10b981 0%, #84cc16 100%);
-            color: white;
-            font-weight: 800;
-            border-radius: 18px;
-            padding: 14px 18px;
-            text-align:center;
-            letter-spacing: .02em;
-            box-shadow: 0 12px 28px rgba(16,185,129,0.22);
-        }}
-        .demo-footer {{
-            color:#475569;
-            font-size:0.95rem;
-            text-align:center;
-            padding: 6px 0 0 0;
-        }}
-        div[data-testid="stForm"] {{ border: 0 !important; }}
-        .stButton > button {{
-            width: 100%;
+
+        .secondary-card {{
+            background: white;
+            border: 1px solid rgba(0,0,0,0.06);
             border-radius: 16px;
-            min-height: 3.2rem;
-            font-weight: 700;
-            border: 0;
-            background: linear-gradient(90deg, #10b981 0%, #84cc16 100%);
-            color: white;
-            box-shadow: 0 10px 22px rgba(16,185,129,0.22);
+            padding: 12px 14px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+            min-height: 88px;
         }}
-        .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {{
-            border-radius: 14px !important;
+        .secondary-card .label {{
+            font-size: 0.88rem; font-weight: 700; opacity: 0.74; color: #122235;
         }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+        .secondary-card .value {{
+            font-size: 1.55rem; font-weight: 850; margin-top: 5px;
+            line-height: 1.05; color: #122235;
+        }}
 
-# -------------------------
-# Layout
-# -------------------------
-st.markdown(
-    f"""
-    <div class="hero">
-        <div class="hero-grid">
-            <div class="logo-box">{logo_svg}</div>
-            <div>
-                <div class="hero-title">Propify <span style="font-weight:500; color:#cbd5e1;">(Demo)</span></div>
-                <div class="hero-subtitle">Public-facing recruiter demo for a private analytics platform.</div>
-                <div class="pill-row">
-                    <div class="pill">Single Prop Analyzer</div>
-                    <div class="pill">Polished Demo UI</div>
-                    <div class="pill">No proprietary model logic exposed</div>
+        .chart-card {{
+            background: white;
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 18px;
+            padding: 18px 18px 8px 18px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+            margin-top: 14px;
+        }}
+
+        .demo-banner {{
+            background: linear-gradient(135deg, #fff8e1, #fffde7);
+            border: 1.5px solid #f0c040;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }}
+
+        .fade-in {{
+            animation: fadeIn 0.35s ease-out;
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(8px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
+        .stDataFrame {{ border-radius: 14px; overflow: hidden; }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_header():
+    st_html(
+        f"""
+        <div style="
+            background: linear-gradient(135deg, #8dc0e2 0%, {TARHEEL_BLUE} 38%, #17344f 100%);
+            background-image:
+                linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px),
+                linear-gradient(135deg, #8dc0e2 0%, {TARHEEL_BLUE} 38%, #17344f 100%);
+            background-size: 24px 24px, 24px 24px, 100% 100%;
+            padding: 28px 28px;
+            border-radius: 24px;
+            color: white;
+            box-shadow: 0 10px 28px rgba(15,23,42,0.14);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-top: 6px solid #d7edf9;
+            font-family: 'Segoe UI', 'Trebuchet MS', 'Helvetica Neue', Arial, sans-serif;
+        ">
+            <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+                <div>
+                    <div style="font-size:2.42rem;font-weight:900;line-height:1.06;letter-spacing:0.2px;">
+                        Propify <span style="font-size:1.3rem;font-weight:600;opacity:0.80;">(Demo)</span>
+                    </div>
+                    <div style="font-size:1.08rem;opacity:0.96;margin-top:8px;font-weight:600;">
+                        Advanced NBA Player Prop Modeling
+                    </div>
+                    <div style="font-size:0.98rem;opacity:0.90;margin-top:6px;font-style:italic;">
+                        Data beats intuition.
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+        """,
+        height=160,
+    )
 
-st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
 
-col_a, col_b = st.columns([1.4, 1], gap="large")
-
-with col_a:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("Single Prop Analyzer")
-    st.markdown('<div class="small-muted">A polished public demo. Outputs are simulated for portfolio viewing only.</div>', unsafe_allow_html=True)
-    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-
-    with st.form("demo_prop_form"):
-        form_col1, form_col2 = st.columns(2)
-        with form_col1:
-            player = st.text_input("Player Name", placeholder="e.g. LeBron James")
-            line = st.number_input("Line", min_value=0.5, max_value=100.0, value=20.5, step=0.5)
-        with form_col2:
-            stat = st.selectbox("Stat", ["Points", "Rebounds", "Assists", "PRA", "Points + Assists", "Points + Rebounds"])
-            opponent = st.text_input("Opponent", placeholder="e.g. BOS")
-        submitted = st.form_submit_button("Analyze Prop")
-
+def render_demo_banner():
     st.markdown(
-        '<div class="notice">This demo exists for portfolio and recruiter review only. The production system, real model logic, tracking engine, authentication, and backend are private.</div>',
+        """
+        <div class="demo-banner">
+            <div style="font-size:1.02rem;font-weight:800;color:#7a5c00;margin-bottom:6px;">
+                🔍 About This Demo
+            </div>
+            <div style="font-size:0.95rem;color:#5a4400;line-height:1.65;">
+                This is a <strong>public-facing demo</strong> of Propify — a private NBA player prop analytics platform.
+                The interface, layout, and data structure closely mirror the production system.
+                The production version includes a full probabilistic model built on real NBA data, pick tracking with a per-user database,
+                multi-leg parlay analysis (2–4 legs), and a complete performance dashboard.
+                <br><br>
+                This demo generates <strong>simulated outputs</strong> using a deterministic placeholder model — it is
+                not connected to any real data source. It exists to demonstrate the product's UI, output structure, and design.
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
-    st.markdown('</div>', unsafe_allow_html=True)
 
-with col_b:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("What this public demo shows")
-    st.markdown(
-        """
-        - A clean product interface
-        - Input flow for a single prop analysis
-        - Simulated charts and metrics
-        - Product design and analytics presentation
-        """
-    )
-    st.markdown("**What is intentionally not included**")
-    st.markdown(
-        """
-        - Proprietary model / weights
-        - User accounts or pick tracking
-        - Real odds logic
-        - Data pipeline and backend services
-        """
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
 
-if submitted:
-    if not player.strip() or not opponent.strip():
-        st.warning("Enter both a player name and opponent to generate the demo analysis.")
+def render_primary_card(label: str, value: str):
+    st.markdown(
+        f"""
+        <div class="primary-card">
+            <div class="label">{label}</div>
+            <div class="value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_secondary_card(label: str, value: str):
+    st.markdown(
+        f"""
+        <div class="secondary-card">
+            <div class="label">{label}</div>
+            <div class="value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def score_style(score, positive_good=True):
+    try:
+        score = float(score)
+    except Exception:
+        return "#f3f4f6", "N/A"
+    if positive_good:
+        if score >= 80: return COLORS["strong"], "Excellent"
+        if score >= 65: return "#e8f7ec", "Strong"
+        if score >= 45: return COLORS["neutral"], "Neutral"
+        if score >= 25: return "#fde7e7", "Weak"
+        return "#f7d4d4", "Poor"
     else:
-        result = demo_model(player, stat, float(line), opponent)
-        trend_img = make_trend_chart(result["trend"], float(line), stat)
-        dist_img = make_distribution_chart(result["dist_x"], result["dist_y"], float(line), result["projection"])
+        if score <= 14: return COLORS["strong"], "Excellent"
+        if score <= 24: return "#e8f7ec", "Strong"
+        if score <= 39: return COLORS["neutral"], "Neutral"
+        if score <= 59: return "#fde7e7", "Risky"
+        return "#f7d4d4", "Very Risky"
 
-        st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.subheader("Demo Results")
 
-        m1, m2, m3, m4 = st.columns(4, gap="medium")
-        metric_data = [
-            ("Projection", f"{result['projection']:.1f}", f"Floor {result['floor']:.1f} • Ceiling {result['ceiling']:.1f}"),
-            ("Over %", f"{result['over_prob']:.1f}%", f"Confidence: {result['confidence']}"),
-            ("Under %", f"{result['under_prob']:.1f}%", f"Volatility: {result['volatility']:.1f}"),
-            ("Line", f"{line:.1f}", f"Opponent: {opponent.upper()}"),
-        ]
-        for col, (label, value, sub) in zip([m1, m2, m3, m4], metric_data):
-            with col:
-                st.markdown(
-                    f'''<div class="metric-card"><div class="metric-label">{label}</div><div class="metric-value">{value}</div><div class="metric-sub">{sub}</div></div>''',
-                    unsafe_allow_html=True,
-                )
+def render_score_card(title: str, value, positive_good: bool = True):
+    bg, label = score_style(value, positive_good=positive_good)
+    st.markdown(
+        f"""
+        <div style="
+            background:{bg};
+            border-radius:16px;
+            padding:14px 16px;
+            min-height:110px;
+            box-shadow:0 3px 12px rgba(0,0,0,0.05);
+            border:1px solid rgba(0,0,0,0.06);
+        ">
+            <div style="font-size:0.88rem;font-weight:700;color:#122235;opacity:0.76;">{title}</div>
+            <div style="font-size:2.1rem;font-weight:900;margin-top:6px;color:#122235;">{value}</div>
+            <div style="font-size:0.82rem;font-weight:700;margin-top:4px;color:#122235;opacity:0.68;">{label}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-        st.markdown(f'<div class="lean-box">Lean: {result["lean"]}</div>', unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2, gap="large")
-        with c1:
-            st.image(trend_img)
-        with c2:
-            st.image(dist_img)
+def render_hit_rate_section(result: dict):
+    st.subheader("Hit Rates vs Line")
+    h1, h2, h3, h4 = st.columns(4)
+    with h1:
+        render_secondary_card("Last 5 Hit Rate", result["last5_hit_rate"])
+    with h2:
+        render_secondary_card("Last 10 Hit Rate", result["last10_hit_rate"])
+    with h3:
+        render_secondary_card("Last 15 Hit Rate", result["last15_hit_rate"])
+    with h4:
+        render_secondary_card("Season Hit Rate", result["season_hit_rate"])
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-        breakdown = pd.DataFrame(
-            {
-                "Factor": ["Projection", "Line", "Confidence", "Volatility", "Demo Lean"],
-                "Value": [result["projection"], line, result["confidence"], result["volatility"], result["lean"]],
-            }
+
+def render_footer():
+    st.markdown(
+        f"""
+        <div style="
+            text-align:center;
+            padding: 28px 0 12px 0;
+            color:#8a9db5;
+            font-size:0.92rem;
+        ">
+            <strong style="color:#17344f;">Propify</strong> is a proprietary analytics platform.
+            This public repository contains a limited demo only.
+            <br>
+            <span style="opacity:0.65;">
+                © 2026 Davis Higgins. All rights reserved.
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ─────────────────────────────────────────
+# Main single prop section
+# ─────────────────────────────────────────
+def render_single_section():
+    st.title("Single Prop Analyzer")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        player = st.text_input("Player Name", placeholder="e.g. Jayson Tatum", key="single_player")
+        stat   = st.selectbox("Stat Type", STAT_OPTIONS, key="single_stat")
+        line_opts = [round(x * 0.5, 1) for x in range(1, 101)]
+        line = st.selectbox(
+            "Line",
+            line_opts,
+            index=line_opts.index(24.5) if 24.5 in line_opts else 47,
+            key="single_line",
+            format_func=lambda v: str(int(v)) if float(v).is_integer() else str(v),
         )
-        st.dataframe(breakdown, use_container_width=True, hide_index=True)
-        st.markdown('<div class="demo-footer">Note: This output is generated from a simplified deterministic demo model and is not the production engine.</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    with c2:
+        opponent = st.text_input("Opponent Team", placeholder="e.g. Heat", key="single_opponent")
+        st.text_area(
+            "Optional Notes",
+            placeholder="Examples: teammate out, back-to-back, starter tonight...",
+            key="single_notes",
+        )
 
-st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
-st.markdown(
-    """
-    <div class="demo-footer">
-        <strong>Propify</strong> is a proprietary analytics platform. This public repository contains a limited demo only.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+    submitted = st.button("Analyze Single Prop", use_container_width=True, key="analyze_btn")
+
+    st.markdown(
+        """
+        <div style="
+            margin-top: 10px;
+            padding: 10px 14px;
+            background: #fff3cd;
+            border: 1px solid #f0c040;
+            border-radius: 12px;
+            font-size: 0.92rem;
+            color: #7a5c00;
+            font-weight: 600;
+        ">
+            ⚠️ <em>All data that is generated below is randomized and purposefully inaccurate. Do not use.</em>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div style="margin-top:8px;font-size:0.88rem;color:#4a5568;font-style:italic;padding:4px 2px;">
+            This data generation closely resembles the layout of some data points displayed in the
+            private (soon to be monetized) Propify analytics platform.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if submitted:
+        if not player.strip() or not opponent.strip():
+            st.warning("Enter both a player name and opponent to generate the demo analysis.")
+            return
+
+        result = demo_model(player.strip(), stat, float(line), opponent.strip())
+        st.session_state["last_demo_result"] = result
+        st.session_state["last_demo_meta"]   = {
+            "player": player.strip(), "stat": stat,
+            "line": float(line), "opponent": opponent.strip(),
+        }
+
+    result   = st.session_state.get("last_demo_result")
+    meta     = st.session_state.get("last_demo_meta")
+
+    if not result or not meta:
+        return
+
+    st.markdown("<div class='fade-in'>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ── Row 1: primary metrics ──────────────────────────────
+    top1, top2, top3, top4, top5 = st.columns(5)
+    with top1: render_primary_card("Projection", str(result["projection"]))
+    with top2: render_primary_card("Over %",     f"{result['over_prob']:.1f}%")
+    with top3: render_primary_card("Under %",    f"{result['under_prob']:.1f}%")
+    with top4: render_primary_card("Push %",     f"{result['push_prob']:.1f}%")
+    with top5: render_primary_card("Lean",       result["lean"])
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    # ── Row 2: secondary metrics ────────────────────────────
+    sec1, sec2, sec3, sec4, sec5 = st.columns(5)
+    with sec1: render_secondary_card("Median",         str(result["median_projection"]))
+    with sec2: render_secondary_card("Floor (20th)",   str(result["floor_projection"]))
+    with sec3: render_secondary_card("Ceiling (80th)", str(result["ceiling_projection"]))
+    with sec4: render_secondary_card("Confidence",     result["confidence"])
+    with sec5: render_secondary_card("Model Version",  "PIE_v2")
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ── Model Scores ────────────────────────────────────────
+    st.subheader("Model Scores")
+    s1, s2, s3, s4 = st.columns(4)
+    with s1: render_score_card("Recent Form Score",  result["recent_form_score"],  True)
+    with s2: render_score_card("Matchup Score",      result["matchup_score"],      True)
+    with s3: render_score_card("Volatility Score",   result["volatility_score"],   False)
+    with s4: render_score_card("Minutes Risk Score", result["minutes_risk_score"], False)
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ── Hit Rates ───────────────────────────────────────────
+    render_hit_rate_section(result)
+
+    # ── Context ─────────────────────────────────────────────
+    st.subheader("Context")
+    cx1, cx2, cx3, cx4 = st.columns(4)
+    cx1.metric("Projected Minutes", result["projected_minutes"])
+    cx2.metric("Rest Days",         result["rest_days"])
+    cx3.metric("Home/Away",         result["home_away"])
+    cx4.metric("Pace Proxy",        result["pace_proxy"])
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ── Key Statistics ──────────────────────────────────────
+    st.subheader("Key Statistics")
+    reasons = [
+        f"Season average: {result['season_average']:.2f}",
+        f"Season median: {result['season_median']:.2f}",
+        f"Weighted recent avg: {result['weighted_recent_average']:.2f}",
+        f"Last 5 average: {result['last5_average']:.2f}",
+        f"Last 10 average: {result['last10_average']:.2f}",
+        f"Last 15 average: {result['last15_average']:.2f}",
+        f"Projected minutes: {result['projected_minutes']}",
+        f"Minutes multiplier: {result['minutes_multiplier']}",
+        f"Matchup multiplier: {result['matchup_multiplier']}",
+        f"Opp allowance proxy: {result['opponent_allowance_proxy']}",
+        f"Season hit rate: {result['season_hit_rate']}",
+        f"Last 10 hit rate: {result['last10_hit_rate']}",
+        f"Last 5 hit rate: {result['last5_hit_rate']}",
+        f"Role: {result['role_stability_label']}",
+    ]
+    kcols = st.columns(4)
+    for i, item in enumerate(reasons):
+        with kcols[i % 4]:
+            st.write(f"• {item}")
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    # ── Risk Flags ──────────────────────────────────────────
+    st.subheader("Risk Flags")
+    rcols = st.columns(4)
+    for i, item in enumerate(result["risks"]):
+        with rcols[i % 4]:
+            st.write(f"• {item}")
+
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
+    # ── Charts ──────────────────────────────────────────────
+    vol = STAT_VOL.get(meta["stat"], 5.0)
+    recent_vals = result["recent_games_df"][meta["stat"]].values[:10][::-1]
+
+    ch1, ch2 = st.columns(2)
+    with ch1:
+        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+        trend_img = make_trend_chart(recent_vals, float(meta["line"]), meta["stat"])
+        st.image(trend_img, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    with ch2:
+        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+        dist_img = make_distribution_chart(result["projection"], vol, float(meta["line"]), meta["stat"])
+        st.image(dist_img, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
+    # ── Recent Sample ───────────────────────────────────────
+    st.subheader("Recent Sample")
+    sample_df = result["recent_games_df"].copy()
+
+    sc_left, sc_right = st.columns([5, 1])
+    with sc_right:
+        window = st.selectbox(
+            "Window",
+            ["Last 10", "Last 20", "Season"],
+            index=0,
+            key="demo_window",
+        )
+    if window == "Last 10":
+        display_df = sample_df.head(10)
+    elif window == "Last 20":
+        display_df = sample_df.head(20)
+    else:
+        display_df = sample_df
+
+    st.dataframe(display_df.reset_index(drop=True), use_container_width=True, hide_index=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────
+# App entry
+# ─────────────────────────────────────────
+inject_css()
+render_header()
+
+st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+render_demo_banner()
+
+tab_single, tab_about = st.tabs(["Single Prop Analyzer", "About Propify"])
+
+with tab_single:
+    render_single_section()
+
+with tab_about:
+    st.markdown(
+        """
+        ## About Propify
+
+        Propify is a privately developed NBA player prop analytics platform designed to identify
+        statistically favorable betting opportunities through probabilistic modeling and contextual game analysis.
+
+        **What the production system includes:**
+        - A custom probabilistic projection engine using real NBA data via nba_api
+        - Over/under probability outputs derived from normal distribution modeling
+        - Confidence scoring across five tiers (Low → High)
+        - Matchup-based adjustments using opponent allowance data
+        - Volatility and minutes-risk metrics
+        - Recent-form weighting with trimmed mean calculations
+        - 2–4 leg parlay builder with compounded probability outputs
+        - Full per-user pick tracking and performance dashboard (Supabase backend)
+        - Row-level security ensuring no shared data between accounts
+
+        **What this demo does not include:**
+        - Any real NBA data or live API connections
+        - The proprietary model logic, weights, or feature engineering
+        - User authentication or pick tracking
+        - Parlay analysis sections
+        - Backend infrastructure
+
+        This demo is intentionally limited to the Single Prop Analyzer tab with
+        simulated outputs. The production codebase is private.
+        """,
+    )
+
+render_footer()
