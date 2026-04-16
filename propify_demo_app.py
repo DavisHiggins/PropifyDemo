@@ -434,19 +434,21 @@ def render_demo_home():
         ">
             <img src="{propify_logo}" style="width: 420px; height: auto; display: block; margin: 0 auto 8px auto;" />
 
-            <div style="
-                color: #7BAFD4;
-                font-size: 1.05rem;
-                font-weight: 800;
-                letter-spacing: 5px;
-                margin-bottom: 22px;
-            ">
-                DEMO
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+           st.markdown(
+    """
+    <div style="
+        color: #7BAFD4;
+        font-size: 1.05rem;
+        font-weight: 800;
+        letter-spacing: 5px;
+        margin-bottom: 22px;
+        text-align: center;
+    ">
+        DEMO
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
     left, center, right = st.columns([1.2, 1.6, 1.2])
     with center:
