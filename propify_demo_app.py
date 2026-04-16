@@ -416,9 +416,6 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
     )
 
 def render_demo_home():
-    propify_logo = f"data:image/png;base64,{PROPIFY_LOGO_BASE64}"
-    dh_logo = f"data:image/png;base64,{DH_LOGO_BASE64}"
-
     st.markdown(
     f"""
     <div style="
