@@ -723,32 +723,5 @@ def main():
     with tab_account:
         render_account_tab()
 
-# safe logo loading for deployed demo
-ICON_PATH = PROPIFY_LOGO_PATH
-if ICON_PATH.exists():
-    icon_b64 = base64.b64encode(ICON_PATH.read_bytes()).decode("utf-8")
-else:
-    icon_b64 = ""
-
-def render_header():
-    left, right = st.columns([8.4, 1.6])
-    with left:
-        st.markdown(
-            f"""
-            <div class="demo-topbar">
-                <img src="data:image/png;base64,{icon_b64}" alt="Propify" />
-                <div class="demo-topbar-engine">Propify AI Engine Demo</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with right:
-        st.markdown(
-            f"""<div class="demo-header-note">
-                <span class="demo-pill">Public Demo</span>
-                <span class="demo-pill">Private analytics blurred</span>
-            </div>""",
-            unsafe_allow_html=True,
-        )
 
 main()
