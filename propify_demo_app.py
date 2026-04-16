@@ -437,7 +437,7 @@ def render_demo_home():
                 font-size: 2rem;
                 font-weight: 800;
                 margin-top: -25px;
-                margin-bottom: 22px;
+                margin-bottom: 0px;
                 text-align: center;
             ">
                 DEMO
