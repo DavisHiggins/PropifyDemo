@@ -415,31 +415,54 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
     )
 
 def render_demo_home():
-    st.markdown("<div class='demo-home-wrap'>", unsafe_allow_html=True)
-    st.markdown("<div style='height:2rem;'></div>", unsafe_allow_html=True)
-    left, center, right = st.columns([1.2, 1.6, 1.2])
-    with center:
-        if PROPIFY_LOGO_PATH.exists():
-            st.image(str(PROPIFY_LOGO_PATH), width=520)
-        st.markdown(
-            """
-            <div class="hero-credit">
-                <strong style="color:#7BAFD4;">Propify Demo</strong> — public UI preview of the private platform.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown("<div style='height:0.9rem;'></div>", unsafe_allow_html=True)
-        cols = st.columns([1.0, 2.0, 1.0])
-        with cols[1]:
-            if st.button("Enter Propify Demo", use_container_width=True):
-                st.session_state.app_view = "main"
-                st.rerun()
-        st.markdown("<div style='height:0.85rem;'></div>", unsafe_allow_html=True)
-        c2 = st.columns([1.45, 0.3, 1.45])
-        with c2[1]:
-            if DH_LOGO_PATH.exists():
-                st.image(str(DH_LOGO_PATH), width=95)
+    st.markdown(
+        """
+        <div style="
+            min-height: 100vh;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            text-align:center;
+        ">
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Propify Logo (centered)
+    if PROPIFY_LOGO_PATH.exists():
+        st.image(str(PROPIFY_LOGO_PATH), width=520)
+
+    # DEMO label under logo
+    st.markdown(
+        f"""
+        <div style="
+            color:{TARHEEL_BLUE};
+            font-size:1.1rem;
+            font-weight:700;
+            letter-spacing:2px;
+            margin-top:-0.5rem;
+            margin-bottom:1.2rem;
+        ">
+            DEMO
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Enter button centered
+    col1, col2, col3 = st.columns([1.2, 1.6, 1.2])
+    with col2:
+        if st.button("Enter Propify Demo", use_container_width=True):
+            st.session_state.app_view = "main"
+            st.rerun()
+
+    # DH logo at bottom
+    st.markdown("<div style='height:1.2rem;'></div>", unsafe_allow_html=True)
+
+    if DH_LOGO_PATH.exists():
+        st.image(str(DH_LOGO_PATH), width=95)
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 def render_play_summary(result, player, stat, line):
