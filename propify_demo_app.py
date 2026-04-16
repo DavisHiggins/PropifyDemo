@@ -12,6 +12,9 @@ from streamlit.components.v1 import html as st_html
 st.set_page_config(page_title="Propify Demo", page_icon="📈", layout="wide")
 
 TARHEEL_BLUE = "#7BAFD4"
+APP_DIR = Path(__file__).parent
+PROPIFY_LOGO_PATH = APP_DIR / "proptrans.png"
+DH_LOGO_PATH = APP_DIR / "dhtrans(3).png"
 NAVY = "#10213a"
 LIGHT_TEXT = "#f5f7fb"
 MUTED = "#c9d3de"
@@ -401,7 +404,8 @@ def render_demo_home():
     st.markdown("<div style='height: 0.55rem;'></div>", unsafe_allow_html=True)
     left, center, right = st.columns([1.1, 2.8, 1.1])
     with center:
-        st.image("proptrans.png", use_container_width=True)
+        if PROPIFY_LOGO_PATH.exists():
+            st.image(str(PROPIFY_LOGO_PATH), use_container_width=True)
         st.markdown(
             """
             <div class="hero-credit">
@@ -420,7 +424,8 @@ def render_demo_home():
         st.markdown("<div style='height:0.35rem;'></div>", unsafe_allow_html=True)
         c2 = st.columns([1.35, 0.5, 1.35])
         with c2[1]:
-            st.image("dhtrans(3).png", use_container_width=True)
+            if DH_LOGO_PATH.exists():
+                st.image(str(DH_LOGO_PATH), use_container_width=True)
 
 def render_play_summary(result, player, stat, line):
     st.markdown(f"<div class='demo-subtext'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
@@ -682,7 +687,7 @@ def main():
         render_account_tab()
 
 # safe logo loading for deployed demo
-ICON_PATH = Path(__file__).parent / "proptrans.png"
+ICON_PATH = PROPIFY_LOGO_PATH
 if ICON_PATH.exists():
     icon_b64 = base64.b64encode(ICON_PATH.read_bytes()).decode("utf-8")
 else:
