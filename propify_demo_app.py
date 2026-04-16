@@ -417,63 +417,43 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
 
 def render_demo_home():
     st.markdown(
-    f"""
-    <div style="
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        overflow: hidden;
-    ">
-
-        <!-- TOP (empty spacer or remove if unwanted) -->
-        <div></div>
-
-        <!-- CENTER CONTENT -->
-        <div style="text-align: center;">
-
-            <img src="data:image/png;base64,{PROPIFY_LOGO_BASE64}" style="
-                width: 460px;
-                display: block;
-                margin: 0 auto;
-            " />
-
-            <div style="
-                color: #7BAFD4;
-                font-size: 2rem;
-                font-weight: 800;
-                letter-spacing: 6px;
-                margin-top: -25px;
-                margin-bottom: 25px;
-            ">
+        f"""
+        <div style="
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+        ">
+            <img src="data:image/png;base64,{PROPIFY_LOGO_BASE64}" style="width:460px;height:auto;display:block;margin:0 auto 8px auto;" />
+            <div style="color:#7BAFD4;font-size:2rem;font-weight:800;letter-spacing:6px;margin:-18px 0 20px 0;text-align:center;">
                 DEMO
             </div>
-
         </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-        <!-- BUTTON -->
-        <div style="width: 320px;">
-    """,
-    unsafe_allow_html=True,
-)
+    left, center, right = st.columns([1.2, 1.6, 1.2])
+    with center:
+        if st.button("Enter Propify Demo", use_container_width=True):
+            st.session_state.app_view = "main"
+            st.rerun()
 
-if st.button("Enter Propify Demo", use_container_width=True):
-    st.session_state.app_view = "main"
-    st.rerun()
+    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 
-st.markdown(
-    f"""
+    st.markdown(
+        f"""
+        <div style="display:flex; justify-content:center; width:100%; padding-bottom:12px;">
+            <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="width:88px;height:auto;display:block;" />
         </div>
-
-        st.markdown(
-    f"""
-    <div style="display:flex; justify-content:center; padding-bottom:20px;">
-        <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="width:80px; height:auto; display:block;" />
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+        """,
+        unsafe_allow_html=True,
+    )
 
 def render_play_summary(result, player, stat, line):
     st.markdown(f"<div class='demo-subtext blur-block'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
@@ -709,11 +689,11 @@ def main():
         <div class="demo-banner" style="margin-top:-0.6rem;">
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Public Demo Preview</div>
             <div class="demo-note">
-                This build mirrors the structure and feel of the private Propify platform while protecting proprietary information. 
-                The "Analyze" tab is interactive in the public preview, while the other sections remain a product and workflow showcase. The full Propify App and Propify AI platform is set to release by the end of the summer.
+                This build mirrors the structure and feel of the private Propify platform while protecting proprietary information.
+                The Analyze tab is interactive in the public preview, while the other sections remain a product and workflow showcase.
             </div>
         </div>
-        ",
+        """,
         unsafe_allow_html=True,
     )
     tab_analyze, tab_parlays, tab_tracking, tab_learn, tab_account = st.tabs(["Analyze", "Parlays", "Tracking", "Learn", "Account"])
