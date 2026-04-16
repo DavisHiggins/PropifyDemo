@@ -560,7 +560,7 @@ def render_analyze_tab():
         <div class="demo-banner">
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Demo Notes</div>
             <div class="demo-note">
-                "The Single Prop Analyzer-Propify’s core engine-combines machine learning, statistical modeling, and real-time context to deliver precise projections and probabilities. Built through extensive iteration and refinement, it is engineered for accuracy and reliability. Analyze a prop below to preview the interface and calculations; demo outputs are placeholder-based and blurred to protect proprietary logic."
+                The Single Prop Analyzer—Propify’s core engine—combines machine learning, statistical modeling, and real-time context to deliver precise projections and probabilities. Built through extensive iteration and refinement, it is engineered for accuracy and reliability. Analyze a prop below to preview the interface and calculations; demo outputs are placeholder-based and blurred to protect proprietary logic.
             </div>
         </div>
         """,
