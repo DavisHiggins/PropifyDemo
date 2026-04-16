@@ -418,59 +418,57 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
     )
 
 def render_demo_home():
-    propify_logo = f"data:image/png;base64,{PROPIFY_LOGO_BASE64}"
-    dh_logo = f"data:image/png;base64,{DH_LOGO_BASE64}"
-
     st.markdown(
-        f"""
+        """
         <div style="
-            min-height: 80vh;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            text-align: center;
         ">
-
-            <!-- Logo -->
-            <img src="{propify_logo}" style="width: 420px; margin-bottom: 6px;" />
-
-            <!-- DEMO (attached directly under logo) -->
-            <div style="
-                color: #7BAFD4;
-                font-size: 1.25rem;
-                font-weight: 800;
-                letter-spacing: 6px;
-                margin-bottom: 28px;
-            ">
-                DEMO
-            </div>
-
-        </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Button
-    _, center, _ = st.columns([1, 2, 1])
+    left, center, right = st.columns([1.15, 1.7, 1.15])
+
     with center:
-        if st.button("Enter Propify Demo", use_container_width=True):
-            st.session_state.app_view = "main"
-            st.rerun()
+        if PROPIFY_LOGO_PATH.exists():
+            st.image(str(PROPIFY_LOGO_PATH), width=420)
 
-    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
-
-    # DH Logo
-    _, center2, _ = st.columns([1, 1, 1])
-    with center2:
         st.markdown(
             f"""
-            <div style="display:flex; justify-content:center;">
-                <img src="{dh_logo}" style="width: 80px;" />
+            <div style="
+                color: {TARHEEL_BLUE};
+                font-size: 1.25rem;
+                font-weight: 800;
+                letter-spacing: 6px;
+                margin-top: -0.15rem;
+                margin-bottom: 1.2rem;
+                text-align: center;
+            ">
+                DEMO
             </div>
             """,
             unsafe_allow_html=True,
         )
 
+        button_left, button_center, button_right = st.columns([1.0, 2.2, 1.0])
+        with button_center:
+            if st.button("Enter Propify Demo", use_container_width=True):
+                st.session_state.app_view = "main"
+                st.rerun()
+
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+
+        dh_left, dh_center, dh_right = st.columns([1.35, 0.5, 1.35])
+        with dh_center:
+            if DH_LOGO_PATH.exists():
+                st.image(str(DH_LOGO_PATH), width=82)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 def render_play_summary(result, player, stat, line):
     st.markdown(f"<div class='demo-subtext blur-block'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
     st.markdown("<div class='small-heading'>Play Summary</div>", unsafe_allow_html=True)
