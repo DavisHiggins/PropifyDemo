@@ -430,37 +430,36 @@ def render_demo_home():
             justify-content: center;
             align-items: center;
         ">
-            <img src="{propify_logo}" style="width: 420px; margin-bottom: 10px;" />
+
+            <!-- Logo -->
+            <img src="{propify_logo}" style="width: 420px; margin-bottom: 6px;" />
+
+            <!-- DEMO (attached directly under logo) -->
+            <div style="
+                color: #7BAFD4;
+                font-size: 1.25rem;
+                font-weight: 800;
+                letter-spacing: 6px;
+                margin-bottom: 28px;
+            ">
+                DEMO
+            </div>
+
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # DEMO text (fixed)
-    st.markdown(
-        """
-        <div style="
-            color: #7BAFD4;
-            font-size: 1.05rem;
-            font-weight: 800;
-            letter-spacing: 5px;
-            margin-bottom: 22px;
-            text-align: center;
-        ">
-            DEMO
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+    # Button
     _, center, _ = st.columns([1, 2, 1])
     with center:
         if st.button("Enter Propify Demo", use_container_width=True):
             st.session_state.app_view = "main"
             st.rerun()
 
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
 
+    # DH Logo
     _, center2, _ = st.columns([1, 1, 1])
     with center2:
         st.markdown(
