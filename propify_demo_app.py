@@ -387,6 +387,21 @@ def render_blur_card(label: str, value: str = "88.8%", small: bool = False):
         unsafe_allow_html=True,
     )
 
+
+def render_demo_card(label: str, value: str = "88.8%", small: bool = False, blur_label: bool = False, blur_value: bool = True):
+    cls = "blur-small" if small else "blur-value"
+    label_class = "label blur-label" if blur_label else "label"
+    value_class = cls if blur_value else ""
+    st.markdown(
+        f"""
+        <div class="blur-card">
+            <div class="{label_class}">{label}</div>
+            <div class="{value_class}">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 def blur_preview_message(title="Demo Preview", copy="Values are intentionally obscured in the public demo. Full Propify access will open publicly sometime in 2026."):
     st.markdown(
         f"""
@@ -401,45 +416,53 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
     )
 
 def render_demo_home():
-    st.markdown("<div style='height: 0.55rem;'></div>", unsafe_allow_html=True)
-    left, center, right = st.columns([1.1, 2.8, 1.1])
+    st.markdown("<div class='demo-home-wrap'>", unsafe_allow_html=True)
+    left, center, right = st.columns([1.0, 2.2, 1.0])
     with center:
         if PROPIFY_LOGO_PATH.exists():
-            st.image(str(PROPIFY_LOGO_PATH), use_container_width=True)
+            st.image(str(PROPIFY_LOGO_PATH), width=540)
         st.markdown(
             """
             <div class="hero-credit">
-                <strong style="color:#7BAFD4;">Propify Demo</strong> — public UI preview of the private platform.<br>
-                <em>Production release planned for sometime in 2026.</em>
+                <strong style="color:#7BAFD4;">Propify Demo</strong> — public UI preview of the private platform.
             </div>
             """,
             unsafe_allow_html=True,
         )
-        st.markdown("<div style='height:0.7rem;'></div>", unsafe_allow_html=True)
-        cols = st.columns([1.2, 1.8, 1.2])
+        st.markdown("<div style='height:0.9rem;'></div>", unsafe_allow_html=True)
+        cols = st.columns([1.15, 1.7, 1.15])
         with cols[1]:
             if st.button("Enter Propify Demo", use_container_width=True):
                 st.session_state.app_view = "main"
                 st.rerun()
-        st.markdown("<div style='height:0.35rem;'></div>", unsafe_allow_html=True)
-        c2 = st.columns([1.35, 0.5, 1.35])
+        st.markdown("<div style='height:0.8rem;'></div>", unsafe_allow_html=True)
+        c2 = st.columns([1.42, 0.36, 1.42])
         with c2[1]:
             if DH_LOGO_PATH.exists():
                 st.image(str(DH_LOGO_PATH), use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 def render_play_summary(result, player, stat, line):
-    st.markdown(f"<div class='demo-subtext'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='demo-subtext blur-block'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
     st.markdown("<div class='small-heading'>Play Summary</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='demo-blue-line'>{player} {result['lean'].lower()} {line:g} {stat.lower()}</div>", unsafe_allow_html=True)
     cols = st.columns(6)
+    blur_map = {
+        "Best Side": False,
+        "Final Projection": False,
+        "Edge vs Line": False,
+        "Confidence Tier": False,
+        "Minutes Risk": True,
+        "ML Changed Result": True,
+    }
     labels = ["Best Side", "Final Projection", "Edge vs Line", "Confidence Tier", "Minutes Risk", "ML Changed Result"]
     for col, label in zip(cols, labels):
         with col:
-            render_blur_card(label, "blurred", small=True)
+            render_demo_card(label, "blurred", small=True, blur_label=blur_map[label], blur_value=True)
     st.markdown(
         """
         <div class="risk-box">
-            <div class="risk-title">Most Important Risk</div>
+            <div class="risk-title blur-block">Most Important Risk</div>
             <div class="risk-body">Minutes uncertainty</div>
         </div>
         """,
@@ -448,46 +471,50 @@ def render_play_summary(result, player, stat, line):
 
 def render_blurred_primary_grid():
     row1 = st.columns(5)
+    blur_top = {"Projection": False, "Over %": False, "Under %": False, "Edge vs Line": True, "Season Hit Rate": True}
     for col, label in zip(row1, ["Projection", "Over %", "Under %", "Edge vs Line", "Season Hit Rate"]):
         with col:
-            render_blur_card(label)
+            render_demo_card(label, blur_label=blur_top[label])
     row2 = st.columns(5)
+    blur_bottom = {"Fair Line": False, "Fair Odds O": False, "Fair Odds U": False, "Confidence": True, "EV %": False}
     for col, label in zip(row2, ["Fair Line", "Fair Odds O", "Fair Odds U", "Confidence", "EV %"]):
         with col:
-            render_blur_card(label, small=True)
+            render_demo_card(label, small=True, blur_label=blur_bottom[label])
 
 def render_blurred_expander():
     with st.expander("Projection Method Details", expanded=False):
         row1 = st.columns(4)
+        blur_row1 = {"Final Projection": True, "Rules Projection": True, "ML Projection": True, "ML Blend %": True}
         for col, label in zip(row1, ["Final Projection", "Rules Projection", "ML Projection", "ML Blend %"]):
             with col:
-                render_blur_card(label, small=True)
+                render_demo_card(label, small=True, blur_label=blur_row1[label])
         row2 = st.columns(4)
+        blur_row2 = {"Train Rows": True, "Train R²": True, "Residual Std": True, "Validation MAE": True}
         for col, label in zip(row2, ["Train Rows", "Train R²", "Residual Std", "Validation MAE"]):
             with col:
-                render_blur_card(label, small=True)
+                render_demo_card(label, small=True, blur_label=blur_row2[label])
         st.markdown("<div style='height:0.5rem;'></div>", unsafe_allow_html=True)
-        render_blur_card("Method", small=True)
+        render_demo_card("Method", small=True, blur_label=False)
 
 def render_demo_scores_tab():
     st.markdown("<div class='feature-card-title'>Model Scores</div>", unsafe_allow_html=True)
     row = st.columns(4)
     for col, title in zip(row, ["Recent Form Score", "Matchup Score", "Volatility Score", "Minutes Risk Score"]):
         with col:
-            render_blur_card(title, small=True)
+            render_demo_card(title, small=True, blur_label=True)
     render_thin_line()
     st.markdown("<div class='feature-card-title'>Hit Rate</div>", unsafe_allow_html=True)
     row2 = st.columns(4)
     for col, title in zip(row2, ["Last 5", "Last 10", "Last 15", "Season"]):
         with col:
-            render_blur_card(title, small=True)
+            render_demo_card(title, small=True, blur_label=True)
 
 def render_demo_context_tab():
     st.markdown("<div class='feature-card-title'>Context</div>", unsafe_allow_html=True)
     row = st.columns(4)
     for col, title in zip(row, ["Projected Minutes", "Rest Days", "Home/Away", "Pace Proxy"]):
         with col:
-            render_blur_card(title, small=True)
+            render_demo_card(title, small=True, blur_label=True)
     render_thin_line()
     st.markdown("<div class='feature-card-title'>Comparable Picks</div>", unsafe_allow_html=True)
     st.markdown('<div class="blur-box blur-block"></div>', unsafe_allow_html=True)
@@ -522,7 +549,7 @@ def render_analyze_tab():
             <div class="demo-note">
                 This demo mirrors the real Propify layout while obscuring private analytics. Analyze is the only interactive workflow in the public build. 
                 Outputs are generated from a deterministic placeholder model and then intentionally blurred to protect proprietary logic. 
-                Full public release is planned for sometime in 2026.
+                The full Propify platform is planned for public release sometime in 2026.
             </div>
         </div>
         """,
@@ -594,7 +621,7 @@ def render_locked_parlay_tab(legs: int):
         """
         <div class="locked-overlay-inner" style="margin-top:0.85rem;">
             <div class="locked-title">Parlay analysis is locked in the public demo</div>
-            <div class="locked-copy">This workflow is part of the private Propify platform. The public demo keeps the full layout visible, but the live parlay engine will open publicly sometime in 2026.</div>
+            <div class="locked-copy">This preview shows the full parlay workflow layout, including inputs, result structure, and downstream interface design, while keeping private analytics and multi-leg calculations obscured.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -610,7 +637,7 @@ def render_tracking_tab():
         """
         <div class="locked-overlay-inner" style="margin-bottom:1rem;">
             <div class="locked-title">Tracking preview only</div>
-            <div class="locked-copy">Per-user tracking, grading history, ROI dashboards, and edit flows are part of the private build. Public access is planned for sometime in 2026.</div>
+            <div class="locked-copy">Per-user tracking, grading history, ROI dashboards, and edit flows are shown here as part of the private product structure and workflow preview.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -629,23 +656,23 @@ def render_learn_tab():
     with learn_about:
         render_section_title("How to Use Propify")
         st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:260px;"></div>', unsafe_allow_html=True)
-        blur_preview_message("Knowledge-base preview", "Educational content is shown here in the private build. The public demo keeps the layout visible while obscuring internal guidance.")
+        blur_preview_message("Knowledge-base preview", "This section previews the product education layout while keeping the internal guidance and proprietary explanations obscured.")
         st.markdown("</div>", unsafe_allow_html=True)
     with learn_metrics:
         render_section_title("Metric Guide")
         st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:360px;"></div>', unsafe_allow_html=True)
-        blur_preview_message("Metric guide preview", "The private metric guide explains every widget, probability, and risk signal in depth. The public demo shows the structure without the proprietary explanations.")
+        blur_preview_message("Metric guide preview", "This section previews how metric definitions, risk explanations, and model guidance are organized in the full product.")
         st.markdown("</div>", unsafe_allow_html=True)
     with learn_faq:
         render_section_title("FAQs")
         st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:240px;"></div>', unsafe_allow_html=True)
-        blur_preview_message("FAQ preview", "Full support content and launch details will be published closer to release.")
+        blur_preview_message("FAQ preview", "This section previews the support and FAQ layout used in the full product.")
         st.markdown("</div>", unsafe_allow_html=True)
 
 def render_account_tab():
     render_section_title("Account")
     st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:220px;"></div>', unsafe_allow_html=True)
-    blur_preview_message("Account preview", "Authentication, account management, and saved picks stay private in the current build.")
+    blur_preview_message("Account preview", "This section previews account-oriented product areas while keeping private account features obscured.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 def main():
@@ -661,8 +688,8 @@ def main():
         <div class="demo-banner" style="margin-top:-0.6rem;">
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Public Demo Preview</div>
             <div class="demo-note">
-                This build is designed to mirror the structure and feel of the private Propify platform while protecting proprietary information. 
-                Only the Analyze workflow is interactive in the public preview. Parlay analysis, tracking, and account features remain locked until the broader public release, planned for sometime in 2026.
+                This build mirrors the structure and feel of the private Propify platform while protecting proprietary information. 
+                Analyze is interactive in the public preview, while the other sections remain a product and workflow showcase.
             </div>
         </div>
         """,
