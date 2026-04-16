@@ -453,7 +453,7 @@ def render_demo_home():
 
            st.markdown(
     f"""
-    <div style="
+    <div style=
         color: #7BAFD4;
         font-size: 1.9rem;
         font-weight: 800;
