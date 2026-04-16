@@ -547,9 +547,7 @@ def render_analyze_tab():
         <div class="demo-banner">
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Demo Notes</div>
             <div class="demo-note">
-                This demo mirrors the real Propify layout while obscuring private analytics. Analyze is the only interactive workflow in the public build. 
-                Outputs are generated from a deterministic placeholder model and then intentionally blurred to protect proprietary logic. 
-                The full Propify platform is planned for public release sometime in 2026.
+                Analyze is the only interactive workflow in the public build. Outputs are generated from a deterministic placeholder model and then blurred to protect proprietary logic. 
             </div>
         </div>
         """,
@@ -689,7 +687,7 @@ def main():
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Public Demo Preview</div>
             <div class="demo-note">
                 This build mirrors the structure and feel of the private Propify platform while protecting proprietary information. 
-                Analyze is interactive in the public preview, while the other sections remain a product and workflow showcase.
+                Analyze is interactive in the public preview, while the other sections remain a product and workflow showcase. The real Propify platform is set to release before August 2026.
             </div>
         </div>
         """,
