@@ -416,21 +416,49 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
     )
 
 def render_demo_home():
+    propify_logo = f"data:image/png;base64,{PROPIFY_LOGO_BASE64}"
+
     st.markdown(
         f"""
+        <style>
+            .stApp {{
+                overflow: hidden;
+            }}
+            [data-testid="stAppViewContainer"] {{
+                overflow: hidden;
+            }}
+            [data-testid="stVerticalBlock"] {{
+                gap: 0rem;
+            }}
+        </style>
+
         <div style="
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
             overflow: hidden;
-            padding: 0;
-            margin: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            margin-top: -3rem;
         ">
-            <img src="data:image/png;base64,{PROPIFY_LOGO_BASE64}" style="width:460px;height:auto;display:block;margin:0 auto 8px auto;" />
-            <div style="color:#7BAFD4;font-size:2rem;font-weight:800;letter-spacing:6px;margin:-18px 0 20px 0;text-align:center;">
+            <img src="{propify_logo}" style="
+                width: 420px;
+                height: auto;
+                display: block;
+                margin: 0 auto 2px auto;
+            " />
+
+            <div style="
+                color: #7BAFD4;
+                font-size: 1.9rem;
+                font-weight: 800;
+                letter-spacing: 6px;
+                margin: -8px 0 12px 0;
+                text-align: center;
+            ">
                 DEMO
             </div>
         </div>
@@ -438,23 +466,23 @@ def render_demo_home():
         unsafe_allow_html=True,
     )
 
-    left, center, right = st.columns([1.2, 1.6, 1.2])
-    with center:
+    button_left, button_center, button_right = st.columns([1.15, 1.7, 1.15])
+    with button_center:
         if st.button("Enter Propify Demo", use_container_width=True):
             st.session_state.app_view = "main"
             st.rerun()
 
-    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
     st.markdown(
         f"""
-        <div style="display:flex; justify-content:center; width:100%; padding-bottom:12px;">
-            <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="width:88px;height:auto;display:block;" />
+        <div style="display:flex; justify-content:center; width:100%; margin-top: 0;">
+            <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="width: 72px; height: auto; display:block;" />
         </div>
         """,
         unsafe_allow_html=True,
     )
-
+    
 def render_play_summary(result, player, stat, line):
     st.markdown(f"<div class='demo-subtext blur-block'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
     st.markdown("<div class='small-heading'>Play Summary</div>", unsafe_allow_html=True)
