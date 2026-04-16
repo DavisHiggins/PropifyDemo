@@ -451,20 +451,21 @@ def render_demo_home():
                 margin: 0 auto 2px auto;
             " />
 
-            <div style="
-                color: #7BAFD4;
-                font-size: 1.9rem;
-                font-weight: 800;
-                letter-spacing: 6px;
-                margin: -8px 0 12px 0;
-                text-align: center;
-            ">
-                DEMO
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+           st.markdown(
+    f"""
+    <div style="
+        color: #7BAFD4;
+        font-size: 1.9rem;
+        font-weight: 800;
+        letter-spacing: 6px;
+        margin: -8px 0 12px 0;
+        text-align: center;
+    ">
+        DEMO
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
     button_left, button_center, button_right = st.columns([1.15, 1.7, 1.15])
     with button_center:
