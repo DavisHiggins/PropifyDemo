@@ -424,46 +424,49 @@ def render_demo_home():
     st.markdown(
         f"""
         <div style="
-            min-height: 100vh;
+            min-height: 80vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            text-align: center;
-            margin-top: -1rem;
         ">
-            <img src="{propify_logo}" style="width: 420px; height: auto; display: block; margin: 0 auto 8px auto;" />
+            <img src="{propify_logo}" style="width: 420px; margin-bottom: 10px;" />
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-           st.markdown(
-    """
-    <div style="
-        color: #7BAFD4;
-        font-size: 1.05rem;
-        font-weight: 800;
-        letter-spacing: 5px;
-        margin-bottom: 22px;
-        text-align: center;
-    ">
-        DEMO
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    # DEMO text (fixed)
+    st.markdown(
+        """
+        <div style="
+            color: #7BAFD4;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 5px;
+            margin-bottom: 22px;
+            text-align: center;
+        ">
+            DEMO
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    left, center, right = st.columns([1.2, 1.6, 1.2])
+    _, center, _ = st.columns([1, 2, 1])
     with center:
         if st.button("Enter Propify Demo", use_container_width=True):
             st.session_state.app_view = "main"
             st.rerun()
 
-    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 
-    left2, center2, right2 = st.columns([1.35, 0.3, 1.35])
+    _, center2, _ = st.columns([1, 1, 1])
     with center2:
         st.markdown(
             f"""
             <div style="display:flex; justify-content:center;">
-                <img src="{dh_logo}" style="width: 82px; height: auto;" />
+                <img src="{dh_logo}" style="width: 80px;" />
             </div>
             """,
             unsafe_allow_html=True,
