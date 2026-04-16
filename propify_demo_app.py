@@ -462,9 +462,9 @@ def render_demo_home():
         """
         <div style="
             color: #7BAFD4;
-            font-size: 1.9rem;
+            font-size: 3rem;
             font-weight: 800;
-            letter-spacing: 6px;
+            letter-spacing: 10px;
             margin: -115px 0 10px 0;
             text-align: center;
         ">
@@ -480,7 +480,7 @@ def render_demo_home():
             st.session_state.app_view = "main"
             st.rerun()
 
-    st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
 
     st.markdown(
         f"""
