@@ -466,14 +466,14 @@ st.markdown(
     f"""
         </div>
 
-        <!-- BOTTOM DH LOGO -->
-        <div style="padding-bottom: 20px;">
-            <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="
-                width: 80px;
-                display: block;
-            " />
-        </div>
-
+        st.markdown(
+    f"""
+    <div style="display:flex; justify-content:center; padding-bottom:20px;">
+        <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="
+            width: 80px;
+            height: auto;
+            display: block;
+        " />
     </div>
     """,
     unsafe_allow_html=True,
