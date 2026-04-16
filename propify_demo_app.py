@@ -447,22 +447,25 @@ def render_demo_home():
         unsafe_allow_html=True,
     )
 
-    left, center, right = st.columns([1.15, 1.7, 1.15])
-    with center:
-        if st.button("Enter Propify Demo", use_container_width=True):
-            st.session_state.app_view = "main"
-            st.rerun()
+   # Button (centered under DEMO)
+button_left, button_center, button_right = st.columns([1, 2, 1])
+with button_center:
+    if st.button("Enter Propify Demo", use_container_width=True):
+        st.session_state.app_view = "main"
+        st.rerun()
 
-    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+# Small spacing
+st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
-    st.markdown(
-        f"""
-        <div style="display:flex; justify-content:center; width:100%;">
-            <img src="{dh_logo}" style="width: 88px; height: auto; display:block;" />
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+# DH Logo (directly under button)
+st.markdown(
+    f"""
+    <div style="display:flex; justify-content:center; width:100%;">
+        <img src="{dh_logo}" style="width: 80px; height: auto;" />
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 def render_play_summary(result, player, stat, line):
     st.markdown(f"<div class='demo-subtext blur-block'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
