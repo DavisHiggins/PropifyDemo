@@ -1,4 +1,3 @@
-
 import hashlib
 import math
 from datetime import datetime
@@ -417,10 +416,11 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
 
 def render_demo_home():
     st.markdown("<div class='demo-home-wrap'>", unsafe_allow_html=True)
-    left, center, right = st.columns([1.0, 2.2, 1.0])
+    st.markdown("<div style='height:2rem;'></div>", unsafe_allow_html=True)
+    left, center, right = st.columns([1.2, 1.6, 1.2])
     with center:
         if PROPIFY_LOGO_PATH.exists():
-            st.image(str(PROPIFY_LOGO_PATH), width=540)
+            st.image(str(PROPIFY_LOGO_PATH), width=520)
         st.markdown(
             """
             <div class="hero-credit">
@@ -430,16 +430,16 @@ def render_demo_home():
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height:0.9rem;'></div>", unsafe_allow_html=True)
-        cols = st.columns([1.15, 1.7, 1.15])
+        cols = st.columns([1.0, 2.0, 1.0])
         with cols[1]:
             if st.button("Enter Propify Demo", use_container_width=True):
                 st.session_state.app_view = "main"
                 st.rerun()
-        st.markdown("<div style='height:0.8rem;'></div>", unsafe_allow_html=True)
-        c2 = st.columns([1.42, 0.36, 1.42])
+        st.markdown("<div style='height:0.85rem;'></div>", unsafe_allow_html=True)
+        c2 = st.columns([1.45, 0.3, 1.45])
         with c2[1]:
             if DH_LOGO_PATH.exists():
-                st.image(str(DH_LOGO_PATH), use_container_width=True)
+                st.image(str(DH_LOGO_PATH), width=95)
     st.markdown("</div>", unsafe_allow_html=True)
 
 def render_play_summary(result, player, stat, line):
@@ -547,7 +547,9 @@ def render_analyze_tab():
         <div class="demo-banner">
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Demo Notes</div>
             <div class="demo-note">
-                Analyze is the only interactive workflow in the public build. Outputs are generated from a deterministic placeholder model and then blurred to protect proprietary logic. 
+                This demo mirrors the real Propify layout while obscuring private analytics. Analyze is the only interactive workflow in the public build. 
+                Outputs are generated from a deterministic placeholder model and then intentionally blurred to protect proprietary logic. 
+                The full Propify platform is planned for public release sometime in 2026.
             </div>
         </div>
         """,
@@ -615,16 +617,6 @@ def render_locked_parlay_tab(legs: int):
     st.markdown('<div class="disabled-analyze">', unsafe_allow_html=True)
     st.button(f"Analyze {legs}-Leg Parlay", use_container_width=True, disabled=True, key=f"an_{legs}")
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div class="locked-overlay-inner" style="margin-top:0.85rem;">
-            <div class="locked-title">Parlay analysis is locked in the public demo</div>
-            <div class="locked-copy">This preview shows the full parlay workflow layout, including inputs, result structure, and downstream interface design, while keeping private analytics and multi-leg calculations obscured.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("<div style='height:0.95rem;'></div>", unsafe_allow_html=True)
     st.markdown('<div class="locked-area"><div class="blur-box blur-block"></div>', unsafe_allow_html=True)
     blur_preview_message("Private multi-leg output", "Parlay probabilities, leg summaries, sticky context, saved entries, and private grading features are intentionally hidden in the public demo.")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -687,7 +679,7 @@ def main():
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Public Demo Preview</div>
             <div class="demo-note">
                 This build mirrors the structure and feel of the private Propify platform while protecting proprietary information. 
-                Analyze is interactive in the public preview, while the other sections remain a product and workflow showcase. The real Propify platform is set to release before August 2026.
+                Analyze is interactive in the public preview, while the other sections remain a product and workflow showcase.
             </div>
         </div>
         """,
