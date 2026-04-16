@@ -1,7 +1,8 @@
-from pathlib import Path
+
 import hashlib
 import math
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -680,14 +681,13 @@ def main():
     with tab_account:
         render_account_tab()
 
-# inject base64 icon into render_header template
-import base64
-icon_b64 = base64.b64encode(Path("proptrans.png").read_bytes()).decode("utf-8")
-# use only the top icon mark rather than full file? full transparent logo still works in tiny size.
-render_header.__defaults__ = ()
-# patch template literal content
-import inspect as _inspect
-# simple monkeypatch by redefining with formatted string
+# safe logo loading for deployed demo
+ICON_PATH = Path(__file__).parent / "proptrans.png"
+if ICON_PATH.exists():
+    icon_b64 = base64.b64encode(ICON_PATH.read_bytes()).decode("utf-8")
+else:
+    icon_b64 = ""
+
 def render_header():
     left, right = st.columns([8.4, 1.6])
     with left:
