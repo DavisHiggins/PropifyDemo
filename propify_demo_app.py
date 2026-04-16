@@ -420,48 +420,63 @@ def render_demo_home():
     dh_logo = f"data:image/png;base64,{DH_LOGO_BASE64}"
 
     st.markdown(
-        f"""
-        <div style="
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-        ">
-            <img src="{propify_logo}" style="width: 460px; height: auto; display: block; margin: 0 auto 10px auto;" />
+    f"""
+    <div style="
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        overflow: hidden;
+    ">
+
+        <!-- TOP (empty spacer or remove if unwanted) -->
+        <div></div>
+
+        <!-- CENTER CONTENT -->
+        <div style="text-align: center;">
+
+            <img src="data:image/png;base64,{PROPIFY_LOGO_BASE64}" style="
+                width: 460px;
+                display: block;
+                margin: 0 auto;
+            " />
+
             <div style="
                 color: #7BAFD4;
                 font-size: 2rem;
                 font-weight: 800;
+                letter-spacing: 6px;
                 margin-top: -25px;
-                margin-bottom: 200px;
-                text-align: center;
+                margin-bottom: 25px;
             ">
                 DEMO
             </div>
+
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-   # Button (centered under DEMO)
-button_left, button_center, button_right = st.columns([1, 2, 1])
-with button_center:
-    if st.button("Enter Propify Demo", use_container_width=True):
-        st.session_state.app_view = "main"
-        st.rerun()
+        <!-- BUTTON -->
+        <div style="width: 320px;">
+    """,
+    unsafe_allow_html=True,
+)
 
-# Small spacing
-st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+if st.button("Enter Propify Demo", use_container_width=True):
+    st.session_state.app_view = "main"
+    st.rerun()
 
-# DH Logo (directly under button)
 st.markdown(
     f"""
-    <div style="display:flex; justify-content:center; width:100%;">
-        <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="width: 80px; height: auto;" />
+        </div>
+
+        <!-- BOTTOM DH LOGO -->
+        <div style="padding-bottom: 20px;">
+            <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="
+                width: 80px;
+                display: block;
+            " />
+        </div>
+
     </div>
     """,
     unsafe_allow_html=True,
