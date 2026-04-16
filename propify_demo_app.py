@@ -415,55 +415,47 @@ def blur_preview_message(title="Demo Preview", copy="Values are intentionally ob
     )
 
 def render_demo_home():
+    import base64
+
+    # Decode DH logo (you already provided this)
+    dh_logo = f"data:image/png;base64,{DH_LOGO_BASE64}"
+
     st.markdown(
-        """
+        f"""
         <div style="
-            min-height: 100vh;
+            height:100vh;
             display:flex;
             flex-direction:column;
             justify-content:center;
             align-items:center;
             text-align:center;
         ">
-        """,
-        unsafe_allow_html=True,
-    )
 
-    # Propify Logo (centered)
-    if PROPIFY_LOGO_PATH.exists():
-        st.image(str(PROPIFY_LOGO_PATH), width=520)
+            <!-- Propify Logo -->
+            <img src="{dh_logo}" style="width:260px; margin-bottom:10px;" />
 
-    # DEMO label under logo
-    st.markdown(
-        f"""
-        <div style="
-            color:{TARHEEL_BLUE};
-            font-size:1.1rem;
-            font-weight:700;
-            letter-spacing:2px;
-            margin-top:-0.5rem;
-            margin-bottom:1.2rem;
-        ">
-            DEMO
+            <!-- DEMO text -->
+            <div style="
+                color:#7BAFD4;
+                font-size:14px;
+                font-weight:700;
+                letter-spacing:3px;
+                margin-bottom:30px;
+            ">
+                DEMO
+            </div>
+
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Enter button centered
+    # Button centered separately (Streamlit renders cleaner this way)
     col1, col2, col3 = st.columns([1.2, 1.6, 1.2])
     with col2:
         if st.button("Enter Propify Demo", use_container_width=True):
             st.session_state.app_view = "main"
             st.rerun()
-
-    # DH logo at bottom
-    st.markdown("<div style='height:1.2rem;'></div>", unsafe_allow_html=True)
-
-    if DH_LOGO_PATH.exists():
-        st.image(str(DH_LOGO_PATH), width=95)
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 def render_play_summary(result, player, stat, line):
     st.markdown(f"<div class='demo-subtext blur-block'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
