@@ -461,7 +461,7 @@ st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 st.markdown(
     f"""
     <div style="display:flex; justify-content:center; width:100%;">
-        <img src="{dh_logo}" style="width: 80px; height: auto;" />
+        <img src="data:image/png;base64,{PROPIFY_LOGO_BASE64}" style="width: 80px; height: auto;" />
     </div>
     """,
     unsafe_allow_html=True,
