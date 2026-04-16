@@ -469,14 +469,10 @@ st.markdown(
         st.markdown(
     f"""
     <div style="display:flex; justify-content:center; padding-bottom:20px;">
-        <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="
-            width: 80px;
-            height: auto;
-            display: block;
-        " />
+        <img src="data:image/png;base64,{DH_LOGO_BASE64}" style="width:80px; height:auto; display:block;" />
     </div>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
 def render_play_summary(result, player, stat, line):
