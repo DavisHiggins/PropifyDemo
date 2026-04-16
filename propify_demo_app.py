@@ -547,8 +547,7 @@ def render_analyze_tab():
         <div class="demo-banner">
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Demo Notes</div>
             <div class="demo-note">
-                The Single Prop Analyzer engine, powered by multiple machine learning models, advanced statistical weighting, and real-time contextual adjustments, is the primary and most innovative tool in Propify, delivering precise projections, probability estimates, and actionable insights by integrating player performance trends, matchup dynamics, minutes modeling, and situational factors into a unified, data-driven decision framework. This build took the most time, has been through dozens of iterations, model refinements, and calculation upgrades, and was meticulously engineered and stress-tested to ensure accuracy, consistency, and reliability. 
-                Analyze a prop below to explore how the finished Propify app interface is structured and presents calculations. Demo outputs are generated from a deterministic placeholder model and intentionally blurred to protect proprietary logic. 
+                The Single Prop Analyzer—Propify’s core engine—combines machine learning, statistical modeling, and real-time context to deliver precise projections and probabilities. Built through extensive iteration and refinement, it is engineered for accuracy and reliability. Analyze a prop below to preview the interface and calculations; demo outputs are placeholder-based and blurred to protect proprietary logic. 
             </div>
         </div>
         """,
