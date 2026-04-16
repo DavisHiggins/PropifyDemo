@@ -436,8 +436,8 @@ def render_demo_home():
                 color: #7BAFD4;
                 font-size: 2rem;
                 font-weight: 800;
-                letter-spacing: 6px;
-                margin: 0 0 22px 0;
+                margin-top: -25px;
+                margin-bottom: 22px;
                 text-align: center;
             ">
                 DEMO
