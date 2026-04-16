@@ -713,7 +713,7 @@ def main():
                 The "Analyze" tab is interactive in the public preview, while the other sections remain a product and workflow showcase. The full Propify App and Propify AI platform is set to release by the end of the summer.
             </div>
         </div>
-        """,
+        ",
         unsafe_allow_html=True,
     )
     tab_analyze, tab_parlays, tab_tracking, tab_learn, tab_account = st.tabs(["Analyze", "Parlays", "Tracking", "Learn", "Account"])
