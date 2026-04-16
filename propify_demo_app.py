@@ -1,760 +1,712 @@
+
 import hashlib
 import math
-from io import BytesIO
+from datetime import datetime
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
 from streamlit.components.v1 import html as st_html
 
-st.set_page_config(page_title="Propify (Demo)", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Propify Demo", page_icon="📈", layout="wide")
 
-# ─────────────────────────────────────────
-# Constants
-# ─────────────────────────────────────────
 TARHEEL_BLUE = "#7BAFD4"
-COLORS = {
-    "strong": "#d9f2e3",
-    "strong_dark": "#1f7a4d",
-    "neutral": "#fff5cf",
-    "neutral_dark": "#8a6d1d",
-    "risky": "#f9d8d8",
-    "risky_dark": "#9b2c2c",
-    "info": "#d9ebfa",
-    "info_dark": "#1f5f99",
-    "surface": "#ffffff",
-    "border": "#d9e6f2",
-}
+NAVY = "#10213a"
+LIGHT_TEXT = "#f5f7fb"
+MUTED = "#c9d3de"
+CARD_BG = "#f3f4f6"
+BORDER = "rgba(138,157,181,0.30)"
 
 STAT_OPTIONS = [
     "Points", "Rebounds", "Assists", "FGM", "FGA", "3PM", "3PA",
     "Steals", "Blocks", "Stocks", "Turnovers", "Fouls", "FTM", "FTA",
     "Fantasy", "PRA", "RA", "PA", "PR",
 ]
+TEAM_OPTIONS = [
+    "Hawks","Celtics","Nets","Hornets","Bulls","Cavaliers","Mavericks","Nuggets","Pistons",
+    "Warriors","Rockets","Pacers","Clippers","Lakers","Grizzlies","Heat","Bucks","Timberwolves",
+    "Pelicans","Knicks","Thunder","Magic","76ers","Suns","Trail Blazers","Kings","Spurs","Raptors","Jazz","Wizards"
+]
+PLAYER_OPTIONS = [
+    "Shai Gilgeous-Alexander","Nikola Jokic","Luka Doncic","Jayson Tatum","Anthony Davis","LeBron James",
+    "Stephen Curry","Trae Young","Paolo Banchero","Devin Booker","Jalen Brunson","Donovan Mitchell",
+    "AJ Green","Bilal Coulibaly","Paul George","Tyrese Haliburton","Bam Adebayo","Jaren Jackson Jr.",
+    "Coby White","Kawhi Leonard","Rudy Gobert","A.J. Lawson","Jalen Williams","Kevin Durant"
+]
 
-RISK_FLAGS_BY_STAT = {
-    "Assists":    ["Assist-based value depends on teammate shot conversion"],
-    "PA":         ["Assist-based value depends on teammate shot conversion"],
-    "RA":         ["Rebounding value can swing with game script and shot profile"],
-    "PRA":        ["Assist-based value depends on teammate shot conversion",
-                   "Rebounding value can swing with game script and shot profile"],
-    "Steals":     ["Stocks props are highly volatile from game to game"],
-    "Blocks":     ["Stocks props are highly volatile from game to game"],
-    "Stocks":     ["Stocks props are highly volatile from game to game"],
-    "Turnovers":  ["Turnovers depend heavily on ball-handling role and pressure"],
-    "Fouls":      ["Fouls are heavily driven by whistle variance and matchup style"],
-    "FTM":        ["Free throws made depend on whistle rate and shooting attempts"],
-    "FGA":        ["Attempt props depend strongly on role, minutes, and shot volume"],
-    "3PA":        ["Attempt props depend strongly on role, minutes, and shot volume"],
-    "FGM":        ["Made-shot props depend on both volume and shooting efficiency"],
-    "3PM":        ["Made-shot props depend on both volume and shooting efficiency"],
-}
-
-
-# ─────────────────────────────────────────
-# Demo model (deterministic from inputs)
-# ─────────────────────────────────────────
+# ---------- Demo model ----------
 def stable_rng(*parts):
     seed_str = "|".join(str(p).strip().lower() for p in parts)
     seed = int(hashlib.sha256(seed_str.encode()).hexdigest()[:16], 16) % (2 ** 32)
     return np.random.default_rng(seed)
 
-
 STAT_BASE = {
-    "Points": 23.5, "Rebounds": 8.4, "Assists": 6.1,
-    "PRA": 36.5, "PA": 29.3, "PR": 31.1, "RA": 14.5,
-    "FGM": 9.1, "FGA": 19.4, "3PM": 2.7, "3PA": 6.3,
-    "Steals": 1.3, "Blocks": 0.9, "Stocks": 2.2,
-    "Turnovers": 2.8, "Fouls": 2.5, "FTM": 4.1, "FTA": 5.2,
-    "Fantasy": 42.0,
+    "Points": 22.0, "Rebounds": 8.2, "Assists": 5.9, "PRA": 35.0, "PA": 28.8, "PR": 30.2, "RA": 14.1,
+    "FGM": 8.3, "FGA": 18.5, "3PM": 2.6, "3PA": 6.8, "Steals": 1.4, "Blocks": 1.0, "Stocks": 2.5,
+    "Turnovers": 2.9, "Fouls": 2.3, "FTM": 4.6, "FTA": 5.8, "Fantasy": 40.0,
 }
 STAT_VOL = {
-    "Points": 6.5, "Rebounds": 3.2, "Assists": 2.8,
-    "PRA": 7.2, "PA": 6.1, "PR": 6.0, "RA": 3.9,
-    "FGM": 3.1, "FGA": 5.2, "3PM": 1.4, "3PA": 2.6,
-    "Steals": 0.9, "Blocks": 0.8, "Stocks": 1.4,
-    "Turnovers": 1.3, "Fouls": 1.2, "FTM": 1.8, "FTA": 2.1,
-    "Fantasy": 10.2,
+    "Points": 6.2, "Rebounds": 3.0, "Assists": 2.7, "PRA": 7.4, "PA": 6.0, "PR": 5.8, "RA": 4.0,
+    "FGM": 2.7, "FGA": 5.2, "3PM": 1.5, "3PA": 2.7, "Steals": 0.8, "Blocks": 0.8, "Stocks": 1.3,
+    "Turnovers": 1.2, "Fouls": 1.1, "FTM": 1.7, "FTA": 2.0, "Fantasy": 10.0,
 }
 
-
 def demo_model(player: str, stat: str, line: float, opponent: str) -> dict:
-    rng = stable_rng(player, stat, str(line), opponent)
+    rng = stable_rng(player, stat, line, opponent)
     base = STAT_BASE.get(stat, 20.0)
-    vol  = STAT_VOL.get(stat, 5.0)
+    vol = STAT_VOL.get(stat, 5.0)
+    player_bump = ((sum(ord(c) for c in player) % 19) - 9) * 0.28 if player else 0.0
+    opp_drag = ((sum(ord(c) for c in opponent) % 11) - 5) * 0.20 if opponent else 0.0
+    projection = round(max(0.5, base + player_bump - opp_drag + rng.normal(0, 0.75)), 2)
+    z = (projection - line) / max(vol, 1.0)
+    over_prob = 1 / (1 + math.exp(-1.15 * z))
+    over_prob = min(0.93, max(0.07, over_prob))
+    under_prob = 1 - over_prob
+    push_prob = round(float(rng.uniform(0.01, 0.05)), 3)
+    lean = "OVER" if over_prob >= under_prob else "UNDER"
 
-    player_bump = ((sum(ord(c) for c in player) % 17) - 8) * 0.33 if player else 0.0
-    opp_drag    = ((sum(ord(c) for c in opponent) % 11) - 5) * 0.18 if opponent else 0.0
-    noise       = rng.normal(0, 0.8)
-
-    projection  = max(0.5, round(base + player_bump - opp_drag + noise, 2))
-    z           = (projection - line) / max(vol, 1.0)
-    over_prob   = 1 / (1 + math.exp(-1.2 * z))
-    over_prob   = min(0.93, max(0.07, over_prob))
-    under_prob  = 1 - over_prob
-    push_prob   = round(rng.uniform(0.01, 0.06), 3)
-
-    floor_proj   = round(max(0, projection - 0.84 * vol), 2)
-    ceil_proj    = round(projection + 0.84 * vol, 2)
-    median_proj  = round(projection + rng.normal(0, 0.3), 2)
-
-    confidence_raw = abs(over_prob - 0.5) * 200
-    if confidence_raw >= 30:
-        confidence, conf_num = "High", 5
-    elif confidence_raw >= 22:
-        confidence, conf_num = "Medium-High", 4
-    elif confidence_raw >= 14:
-        confidence, conf_num = "Medium", 3
+    conf_raw = abs(over_prob - 0.5) * 200
+    if conf_raw >= 30:
+        confidence = "High"
+    elif conf_raw >= 22:
+        confidence = "Medium-High"
+    elif conf_raw >= 14:
+        confidence = "Medium"
     else:
-        confidence, conf_num = "Low-Medium", 2
+        confidence = "Low-Medium"
 
-    lean = "OVER" if over_prob > 0.56 else ("UNDER" if under_prob > 0.56 else "NEUTRAL")
+    recent_form = int(rng.integers(48, 91))
+    matchup_score = int(rng.integers(40, 85))
+    volatility = int(rng.integers(14, 63))
+    minutes_risk = int(rng.integers(8, 49))
 
-    # Scores
-    recent_form_score   = int(rng.integers(42, 91))
-    matchup_score       = int(rng.integers(38, 88))
-    volatility_score    = int(rng.integers(12, 62))
-    minutes_risk_score  = int(rng.integers(8, 48))
+    season_avg = round(projection + rng.normal(0.2, 1.0), 2)
+    last10_avg = round(projection + rng.normal(0.15, 1.1), 2)
+    fair_line = round(projection + rng.normal(0.0, 0.35), 1)
+    season_hit = round((over_prob if lean == "OVER" else under_prob) * 100 + rng.normal(0, 5), 1)
+    season_hit = max(8.0, min(91.0, season_hit))
+    ml_proj = round(projection + rng.normal(-0.6, 0.9), 2)
+    rules_proj = round(projection + rng.normal(0.3, 0.6), 2)
+    ml_blend = int(rng.integers(24, 48))
+    edge = round(projection - line, 2)
+    if lean == "UNDER":
+        edge = -abs(edge)
+    else:
+        edge = abs(edge)
 
-    # Hit rates
-    def fake_hit_rate(window):
-        base_hr = over_prob + rng.normal(0, 0.07)
-        return round(min(1.0, max(0.0, base_hr)) * 100, 1)
-
-    # Averages
-    season_avg     = round(projection + rng.normal(0.4, 1.1), 2)
-    season_median  = round(season_avg - rng.uniform(0.1, 0.8), 2)
-    last5_avg      = round(projection + rng.normal(0.2, 1.4), 2)
-    last10_avg     = round(projection + rng.normal(0.3, 1.0), 2)
-    last15_avg     = round(projection + rng.normal(0.35, 0.9), 2)
-    wt_recent_avg  = round(projection + rng.normal(0.15, 0.6), 2)
-
-    proj_minutes   = round(30 + rng.normal(2, 3), 1)
-    rest_days      = int(rng.integers(1, 4))
-    pace_proxy     = round(112 + rng.normal(0, 4), 1)
-    min_mult       = round(1.0 + rng.normal(0, 0.05), 3)
-    matchup_mult   = round(1.0 + rng.normal(0, 0.06), 3)
-    opp_allow      = round(season_avg + rng.normal(0.5, 1.5), 2)
-    role_label     = rng.choice(["Stable Role", "Expanded Role", "Reduced Role"])
-    role_alert     = "None"
-
-    # Recent sample table
-    n_games = 20
-    game_vals = np.clip(rng.normal(loc=projection, scale=vol * 0.85, size=n_games), 0, None)
-    game_vals = np.round(game_vals, 1)
-    dates = pd.date_range(end=pd.Timestamp.today(), periods=n_games, freq="3D")[::-1]
-    opps  = rng.choice(
-        ["LAL","BOS","MIA","GSW","CHI","DAL","PHX","DEN","MIL","ATL","NYK","PHI"],
-        size=n_games, replace=True
-    )
-    home_away_arr = rng.choice(["Home","Away"], size=n_games)
-    mins_arr = np.clip(rng.normal(proj_minutes, 3, size=n_games), 15, 42).round(1)
-
-    recent_df = pd.DataFrame({
-        "Date":    [d.strftime("%b %d") for d in dates],
-        "Opp":     opps,
-        "H/A":     home_away_arr,
-        "MIN":     mins_arr,
-        stat:      game_vals,
-        "vs Line": ["✅" if v > line else "❌" for v in game_vals],
-    })
-
-    risks = RISK_FLAGS_BY_STAT.get(stat, [])
-    if volatility_score >= 40:
-        risks = risks + ["High game-to-game volatility"]
-    if minutes_risk_score >= 30:
-        risks = risks + ["Minutes instability"]
-    if rest_days == 0:
-        risks = risks + ["Back-to-back fatigue risk"]
-    if not risks:
-        risks = ["None identified"]
+    rows = []
+    for i in range(10):
+        date = pd.Timestamp("2026-04-12") - pd.Timedelta(days=i * int(rng.integers(2, 5)))
+        stat_val = max(0, round(projection + rng.normal(0, vol * 0.7)))
+        outcome = "over" if stat_val > line else ("push" if stat_val == line else "under")
+        rows.append({
+            "Game Date": date.strftime("%m/%d/%Y"),
+            "Matchup": f"{player.split()[-1][:3].upper()} vs. {opponent[:3].upper()}",
+            "W/L": "W" if i % 2 == 0 else "L",
+            "MIN": int(max(18, rng.normal(31, 4))),
+            "PTS": int(max(0, stat_val if stat == "Points" else rng.normal(16, 7))),
+            "REB": int(max(0, rng.normal(7, 3))),
+            "AST": int(max(0, rng.normal(5, 2.5))),
+            "Pick Result": outcome,
+        })
+    df = pd.DataFrame(rows)
 
     return {
         "projection": projection,
-        "median_projection": median_proj,
-        "floor_projection": floor_proj,
-        "ceiling_projection": ceil_proj,
-        "over_prob": round(over_prob * 100, 1),
-        "under_prob": round(under_prob * 100, 1),
-        "push_prob": round(push_prob * 100, 1),
-        "lean": lean,
+        "over_prob": over_prob * 100,
+        "under_prob": under_prob * 100,
+        "push_prob": push_prob * 100,
+        "edge": edge,
+        "season_hit": season_hit,
+        "fair_line": fair_line,
+        "fair_odds_over": f"+{int(abs((1/(max(over_prob, 1e-6)))*100 - 100))}",
+        "fair_odds_under": f"-{int(abs((1/(max(under_prob, 1e-6)))*100 - 100))}",
         "confidence": confidence,
-        "confidence_score_numeric": conf_num,
-        "recent_form_score": recent_form_score,
+        "ev_pct": "N/A",
+        "recent_form": recent_form,
         "matchup_score": matchup_score,
-        "volatility_score": volatility_score,
-        "minutes_risk_score": minutes_risk_score,
-        "season_average": season_avg,
-        "season_median": season_median,
-        "last5_average": last5_avg,
-        "last10_average": last10_avg,
-        "last15_average": last15_avg,
-        "weighted_recent_average": wt_recent_avg,
-        "last5_hit_rate": f"{fake_hit_rate(5)}%",
-        "last10_hit_rate": f"{fake_hit_rate(10)}%",
-        "last15_hit_rate": f"{fake_hit_rate(15)}%",
-        "season_hit_rate": f"{fake_hit_rate(99)}%",
-        "projected_minutes": proj_minutes,
-        "rest_days": rest_days,
-        "home_away": "Neutral",
-        "pace_proxy": pace_proxy,
-        "minutes_multiplier": min_mult,
-        "matchup_multiplier": matchup_mult,
-        "opponent_allowance_proxy": opp_allow,
-        "role_stability_label": role_label,
-        "role_change_alert": role_alert,
-        "risks": risks,
-        "recent_games_df": recent_df,
-        "stat_label": stat.upper(),
+        "volatility_score": volatility,
+        "minutes_risk_score": minutes_risk,
+        "season_avg": season_avg,
+        "last10_avg": last10_avg,
+        "rules_proj": rules_proj,
+        "ml_proj": ml_proj,
+        "ml_blend": ml_blend,
+        "lean": lean,
+        "recent_df": df,
     }
 
+# ---------- State ----------
+if "app_view" not in st.session_state:
+    st.session_state.app_view = "home"
+if "demo_last_result" not in st.session_state:
+    st.session_state.demo_last_result = None
+if "demo_last_inputs" not in st.session_state:
+    st.session_state.demo_last_inputs = {}
+if "demo_mode" not in st.session_state:
+    st.session_state.demo_mode = "Deep Mode"
 
-# ─────────────────────────────────────────
-# Chart helpers
-# ─────────────────────────────────────────
-def fig_to_png(fig) -> bytes:
-    buf = BytesIO()
-    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
-    plt.close(fig)
-    buf.seek(0)
-    return buf.read()
+# ---------- CSS ----------
+st.markdown(f"""
+<style>
+    .stApp {{
+        background: {NAVY};
+    }}
+    .block-container {{
+        padding-top: 0.6rem;
+        padding-bottom: 2rem;
+        max-width: 96rem;
+    }}
+    .demo-topbar {{
+        display:flex; align-items:center; justify-content:flex-start;
+        min-height:34px; margin:-0.15rem 0 1.9rem 0; padding-top:0;
+    }}
+    .demo-topbar img {{
+        width:34px; height:34px; object-fit:contain; flex-shrink:0; margin:0;
+    }}
+    .demo-topbar-engine {{
+        margin-left:0.55rem; font-size:1.32rem; font-weight:700; color:{TARHEEL_BLUE};
+        line-height:1; display:flex; align-items:center; height:34px;
+    }}
+    .demo-header-note {{
+        color:{MUTED}; font-size:0.88rem; line-height:1.5; text-align:right; margin-top:0.15rem;
+    }}
+    .demo-pill {{
+        display:inline-block; padding:0.38rem 0.78rem; border-radius:999px;
+        border:1px solid rgba(255,255,255,0.16); color:{LIGHT_TEXT}; font-size:0.82rem;
+        background:rgba(255,255,255,0.04); margin-left:0.4rem;
+    }}
+    .propify-section-title {{
+        margin:0.1rem 0 1rem 0;
+    }}
+    .propify-section-title h1 {{
+        margin:0; font-size:3rem; font-weight:800; line-height:1.05; color:{LIGHT_TEXT};
+    }}
+    .propify-section-divider {{
+        width:120px; height:4px; border-radius:999px; background:linear-gradient(90deg, {TARHEEL_BLUE} 0%, #9ec7e6 100%);
+        margin-top:0.18rem;
+    }}
+    .demo-banner {{
+        background:linear-gradient(180deg, rgba(123,175,212,0.16), rgba(123,175,212,0.08));
+        border:1px solid rgba(123,175,212,0.28);
+        border-radius:18px;
+        padding:1rem 1.1rem;
+        margin:0 0 1.1rem 0;
+        color:{LIGHT_TEXT};
+    }}
+    .demo-note {{
+        color:{MUTED}; font-size:0.92rem; line-height:1.7;
+    }}
+    .blur-card {{
+        background:{CARD_BG};
+        border-radius:22px;
+        padding:1.05rem 1.1rem;
+        min-height:115px;
+    }}
+    .blur-card .label {{
+        font-size:0.9rem; font-weight:700; color:#4b5563; opacity:0.95;
+    }}
+    .blur-card .blur-value {{
+        margin-top:0.6rem;
+        font-size:2.05rem; font-weight:900; color:#122235;
+        filter: blur(8px);
+        user-select:none;
+    }}
+    .blur-card .blur-small {{
+        margin-top:0.65rem; font-size:1.18rem; font-weight:700; color:#122235; filter: blur(7px);
+    }}
+    .blur-block {{
+        filter: blur(10px);
+        user-select:none;
+        pointer-events:none;
+    }}
+    .blur-box {{
+        background:{CARD_BG};
+        border-radius:18px;
+        min-height:160px;
+        padding:1rem;
+    }}
+    .locked-area {{
+        position:relative;
+    }}
+    .locked-overlay {{
+        position:absolute; inset:0;
+        backdrop-filter: blur(7px);
+        background: rgba(16,33,58,0.28);
+        border-radius:18px;
+        display:flex; align-items:center; justify-content:center;
+        text-align:center; padding:1.4rem; z-index:5;
+    }}
+    .locked-overlay-inner {{
+        max-width:580px; background:rgba(16,33,58,0.92); color:{LIGHT_TEXT}; border:1px solid rgba(123,175,212,0.28);
+        border-radius:18px; padding:1.15rem 1.2rem;
+        box-shadow:0 16px 30px rgba(0,0,0,0.20);
+    }}
+    .locked-title {{
+        font-size:1.06rem; font-weight:800; color:{TARHEEL_BLUE}; margin-bottom:0.4rem;
+    }}
+    .locked-copy {{
+        font-size:0.95rem; line-height:1.6; color:{LIGHT_TEXT};
+    }}
+    .demo-subtext {{
+        font-size:0.82rem; color:{MUTED}; margin:0 0 0.45rem 0;
+    }}
+    .demo-blue-line {{
+        color:{TARHEEL_BLUE}; font-size:0.82rem; margin:-0.08rem 0 0.7rem 0;
+    }}
+    .risk-box {{
+        background:#17344f; border-left:4px solid {TARHEEL_BLUE}; border-radius:12px; padding:0.85rem 1rem; margin:0.25rem 0 0.8rem 0;
+    }}
+    .risk-title {{ font-size:0.76rem; opacity:0.78; color:{LIGHT_TEXT}; }}
+    .risk-body {{ font-size:1.02rem; font-weight:700; color:{LIGHT_TEXT}; filter: blur(6px); }}
+    .demo-table-wrap {{
+        background:{CARD_BG}; border-radius:18px; padding:0.9rem; overflow-x:auto;
+        border:1px solid rgba(18,34,53,0.10);
+    }}
+    .demo-table {{
+        width:100%; border-collapse:collapse; color:#122235; font-size:0.92rem;
+    }}
+    .demo-table th {{
+        padding:0.75rem 0.65rem; background:#eff4f8; text-align:center; font-weight:800; color:#122235; filter: blur(6px);
+    }}
+    .demo-table td {{
+        padding:0.7rem 0.6rem; text-align:center; border-top:1px solid #d6dee8; filter: blur(7px);
+    }}
+    .demo-table-caption {{
+        color:#122235; font-size:0.92rem; margin-bottom:0.6rem; filter: blur(6px);
+    }}
+    .hero-credit {{
+        text-align:center; margin-top:0.45rem; color:{MUTED}; font-size:0.92rem;
+    }}
+    .hero-credit em {{ color:{LIGHT_TEXT}; }}
+    .disabled-analyze {{
+        position:relative;
+    }}
+    .disabled-analyze button {{
+        filter: blur(2px) grayscale(0.2);
+        pointer-events:none;
+    }}
+    .feature-card-title {{
+        color:{LIGHT_TEXT}; font-size:1.08rem; font-weight:700; margin:0 0 0.85rem 0;
+    }}
+    .small-heading {{
+        color:{LIGHT_TEXT}; font-size:2.05rem; font-weight:800; line-height:1.15; margin:0 0 0.5rem 0;
+    }}
+    .stTabs [data-baseweb="tab-list"] {{
+        gap:2.4rem;
+        justify-content:flex-start;
+        align-items:center;
+        padding-left:0 !important;
+        margin-left:-0.45rem;
+        border-bottom:1.5px solid rgba(255,255,255,0.62);
+        margin-top:0.95rem;
+        margin-bottom:1.1rem;
+        width:max-content !important;
+        max-width:max-content !important;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        height:2.8rem;
+        margin-right:0.35rem;
+        white-space:nowrap;
+        border-radius:10px 10px 0 0;
+        padding-left:0.15rem;
+        padding-right:0.15rem;
+        font-weight:700;
+        font-size:1.08rem;
+        color:{LIGHT_TEXT} !important;
+        border-bottom:2px solid transparent !important;
+    }}
+    .stTabs [data-baseweb="tab-highlight"] {{
+        background: {TARHEEL_BLUE} !important;
+        height:3px !important;
+        border-radius:999px !important;
+    }}
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stNumberInput"] input,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] input {{
+        color:{LIGHT_TEXT} !important;
+        -webkit-text-fill-color:{LIGHT_TEXT} !important;
+    }}
+</style>
+""", unsafe_allow_html=True)
 
+# ---------- Helpers ----------
+def render_header():
+    left, right = st.columns([8.4, 1.6])
+    with left:
+        st.markdown(
+            """
+            <div class="demo-topbar">
+                <img src="data:image/png;base64,PLACEHOLDER_ICON" alt="Propify" />
+                <div class="demo-topbar-engine">Propify AI Engine Demo</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.markdown(
+            f"""<div class="demo-header-note">
+                <span class="demo-pill">Public Demo</span>
+                <span class="demo-pill">Private analytics blurred</span>
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
-def make_trend_chart(values, line: float, stat: str) -> bytes:
-    fig, ax = plt.subplots(figsize=(8, 3.2))
-    fig.patch.set_facecolor("#ffffff")
-    ax.set_facecolor("#f5fafe")
-
-    games = np.arange(1, len(values) + 1)
-    ax.plot(games, values, linewidth=2.6, marker="o", markersize=4.2,
-            color=TARHEEL_BLUE, label=stat)
-    ax.axhline(line, linestyle="--", linewidth=1.8, color="#e74c3c", label=f"Line: {line}")
-    ax.fill_between(games, values, np.min(values) - 2, alpha=0.10, color=TARHEEL_BLUE)
-
-    ax.spines[:].set_visible(False)
-    ax.tick_params(colors="#475569", labelsize=9)
-    ax.grid(alpha=0.18, color="#d9e6f2")
-    ax.set_title(f"Recent Sample — {stat}", color="#122235", fontsize=11.5,
-                 fontweight="bold", loc="left")
-    ax.set_xlabel("Game (most recent → right)", color="#7a8fa0", fontsize=8.5)
-    ax.set_ylabel(stat, color="#7a8fa0", fontsize=8.5)
-    ax.legend(fontsize=8.5, framealpha=0.5)
-    fig.tight_layout()
-    return fig_to_png(fig)
-
-
-def make_distribution_chart(projection: float, vol: float, line: float, stat: str) -> bytes:
-    x = np.linspace(max(0, projection - 4 * vol), projection + 4 * vol, 400)
-    y = np.exp(-0.5 * ((x - projection) / vol) ** 2)
-    y /= np.trapz(y, x)
-
-    fig, ax = plt.subplots(figsize=(8, 3.2))
-    fig.patch.set_facecolor("#ffffff")
-    ax.set_facecolor("#f5fafe")
-
-    # shade over/under
-    ax.fill_between(x, y, where=(x >= line), alpha=0.22, color="#27ae60", label="Over")
-    ax.fill_between(x, y, where=(x < line),  alpha=0.18, color="#e74c3c", label="Under")
-    ax.plot(x, y, linewidth=2.6, color=TARHEEL_BLUE)
-    ax.axvline(line,       linestyle="--", linewidth=1.8, color="#e74c3c",  label=f"Line: {line}")
-    ax.axvline(projection, linestyle=":",  linewidth=2.0, color="#17344f", label=f"Projection: {projection}")
-
-    ax.spines[:].set_visible(False)
-    ax.tick_params(colors="#475569", labelsize=9)
-    ax.grid(alpha=0.18, color="#d9e6f2")
-    ax.set_title(f"Outcome Distribution — {stat}", color="#122235", fontsize=11.5,
-                 fontweight="bold", loc="left")
-    ax.set_xlabel("Projected Output", color="#7a8fa0", fontsize=8.5)
-    ax.set_ylabel("Density", color="#7a8fa0", fontsize=8.5)
-    ax.legend(fontsize=8.5, framealpha=0.5)
-    fig.tight_layout()
-    return fig_to_png(fig)
-
-
-# ─────────────────────────────────────────
-# UI Components
-# ─────────────────────────────────────────
-def inject_css():
+def render_section_title(title: str):
     st.markdown(
         f"""
-        <style>
-        html, body, [class*="css"] {{
-            font-family: "Segoe UI", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
-        }}
-        .stApp {{ background: #f5fafe; }}
-        .block-container {{ padding-top: 1.3rem; padding-bottom: 2rem; }}
-
-        div[data-testid="stMetric"] {{
-            background: white;
-            border: 1px solid rgba(0,0,0,0.06);
-            padding: 10px 12px;
-            border-radius: 14px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-        }}
-
-        .primary-card {{
-            background: white;
-            border: 1px solid rgba(0,0,0,0.06);
-            border-radius: 18px;
-            padding: 16px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.05);
-            min-height: 110px;
-        }}
-        .primary-card .label {{
-            font-size: 0.92rem; font-weight: 700; opacity: 0.78; color: #122235;
-        }}
-        .primary-card .value {{
-            font-size: 2.25rem; font-weight: 900; margin-top: 6px;
-            line-height: 1.05; color: #122235;
-        }}
-
-        .secondary-card {{
-            background: white;
-            border: 1px solid rgba(0,0,0,0.06);
-            border-radius: 16px;
-            padding: 12px 14px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.04);
-            min-height: 88px;
-        }}
-        .secondary-card .label {{
-            font-size: 0.88rem; font-weight: 700; opacity: 0.74; color: #122235;
-        }}
-        .secondary-card .value {{
-            font-size: 1.55rem; font-weight: 850; margin-top: 5px;
-            line-height: 1.05; color: #122235;
-        }}
-
-        .chart-card {{
-            background: white;
-            border: 1px solid rgba(0,0,0,0.06);
-            border-radius: 18px;
-            padding: 18px 18px 8px 18px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.05);
-            margin-top: 14px;
-        }}
-
-        .demo-banner {{
-            background: linear-gradient(135deg, #fff8e1, #fffde7);
-            border: 1.5px solid #f0c040;
-            border-radius: 16px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
-        }}
-
-        .fade-in {{
-            animation: fadeIn 0.35s ease-out;
-        }}
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(8px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-
-        .stDataFrame {{ border-radius: 14px; overflow: hidden; }}
-        </style>
+        <div class="propify-section-title">
+            <h1>{title}</h1>
+            <div class="propify-section-divider"></div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
 
+def render_thin_line():
+    st.markdown(
+        "<div style='height:2px; width:100%; background:rgba(255,255,255,0.22); margin:0.08rem 0 1.15rem 0; border-radius:999px;'></div>",
+        unsafe_allow_html=True,
+    )
 
-def render_header():
-    st_html(
+def render_blur_card(label: str, value: str = "88.8%", small: bool = False):
+    cls = "blur-small" if small else "blur-value"
+    st.markdown(
         f"""
-        <div style="
-            background: linear-gradient(135deg, #8dc0e2 0%, {TARHEEL_BLUE} 38%, #17344f 100%);
-            background-image:
-                linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px),
-                linear-gradient(135deg, #8dc0e2 0%, {TARHEEL_BLUE} 38%, #17344f 100%);
-            background-size: 24px 24px, 24px 24px, 100% 100%;
-            padding: 28px 28px;
-            border-radius: 24px;
-            color: white;
-            box-shadow: 0 10px 28px rgba(15,23,42,0.14);
-            border: 1px solid rgba(255,255,255,0.18);
-            border-top: 6px solid #d7edf9;
-            font-family: 'Segoe UI', 'Trebuchet MS', 'Helvetica Neue', Arial, sans-serif;
-        ">
-            <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-                <div>
-                    <div style="font-size:2.42rem;font-weight:900;line-height:1.06;letter-spacing:0.2px;">
-                        Propify <span style="font-size:1.3rem;font-weight:600;opacity:0.80;">(Demo)</span>
-                    </div>
-                    <div style="font-size:1.08rem;opacity:0.96;margin-top:8px;font-weight:600;">
-                        Advanced NBA Player Prop Modeling
-                    </div>
-                    <div style="font-size:0.98rem;opacity:0.90;margin-top:6px;font-style:italic;">
-                        Data beats intuition.
-                    </div>
-                </div>
+        <div class="blur-card">
+            <div class="label">{label}</div>
+            <div class="{cls}">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def blur_preview_message(title="Demo Preview", copy="Values are intentionally obscured in the public demo. Full Propify access will open publicly sometime in 2026."):
+    st.markdown(
+        f"""
+        <div class="locked-overlay">
+            <div class="locked-overlay-inner">
+                <div class="locked-title">{title}</div>
+                <div class="locked-copy">{copy}</div>
             </div>
         </div>
         """,
-        height=160,
+        unsafe_allow_html=True,
     )
 
+def render_demo_home():
+    st.markdown("<div style='height: 0.55rem;'></div>", unsafe_allow_html=True)
+    left, center, right = st.columns([1.1, 2.8, 1.1])
+    with center:
+        st.image("proptrans.png", use_container_width=True)
+        st.markdown(
+            """
+            <div class="hero-credit">
+                <strong style="color:#7BAFD4;">Propify Demo</strong> — public UI preview of the private platform.<br>
+                <em>Production release planned for sometime in 2026.</em>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height:0.7rem;'></div>", unsafe_allow_html=True)
+        cols = st.columns([1.2, 1.8, 1.2])
+        with cols[1]:
+            if st.button("Enter Propify Demo", use_container_width=True):
+                st.session_state.app_view = "main"
+                st.rerun()
+        st.markdown("<div style='height:0.35rem;'></div>", unsafe_allow_html=True)
+        c2 = st.columns([1.35, 0.5, 1.35])
+        with c2[1]:
+            st.image("dhtrans(3).png", use_container_width=True)
 
-def render_demo_banner():
+def render_play_summary(result, player, stat, line):
+    st.markdown(f"<div class='demo-subtext'>Engine Projections | Rules: {result['rules_proj']:.2f} + ML: {result['ml_proj']:.2f} | {result['ml_blend']}% ML</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small-heading'>Play Summary</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='demo-blue-line'>{player} {result['lean'].lower()} {line:g} {stat.lower()}</div>", unsafe_allow_html=True)
+    cols = st.columns(6)
+    labels = ["Best Side", "Final Projection", "Edge vs Line", "Confidence Tier", "Minutes Risk", "ML Changed Result"]
+    for col, label in zip(cols, labels):
+        with col:
+            render_blur_card(label, "blurred", small=True)
+    st.markdown(
+        """
+        <div class="risk-box">
+            <div class="risk-title">Most Important Risk</div>
+            <div class="risk-body">Minutes uncertainty</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def render_blurred_primary_grid():
+    row1 = st.columns(5)
+    for col, label in zip(row1, ["Projection", "Over %", "Under %", "Edge vs Line", "Season Hit Rate"]):
+        with col:
+            render_blur_card(label)
+    row2 = st.columns(5)
+    for col, label in zip(row2, ["Fair Line", "Fair Odds O", "Fair Odds U", "Confidence", "EV %"]):
+        with col:
+            render_blur_card(label, small=True)
+
+def render_blurred_expander():
+    with st.expander("Projection Method Details", expanded=False):
+        row1 = st.columns(4)
+        for col, label in zip(row1, ["Final Projection", "Rules Projection", "ML Projection", "ML Blend %"]):
+            with col:
+                render_blur_card(label, small=True)
+        row2 = st.columns(4)
+        for col, label in zip(row2, ["Train Rows", "Train R²", "Residual Std", "Validation MAE"]):
+            with col:
+                render_blur_card(label, small=True)
+        st.markdown("<div style='height:0.5rem;'></div>", unsafe_allow_html=True)
+        render_blur_card("Method", small=True)
+
+def render_demo_scores_tab():
+    st.markdown("<div class='feature-card-title'>Model Scores</div>", unsafe_allow_html=True)
+    row = st.columns(4)
+    for col, title in zip(row, ["Recent Form Score", "Matchup Score", "Volatility Score", "Minutes Risk Score"]):
+        with col:
+            render_blur_card(title, small=True)
+    render_thin_line()
+    st.markdown("<div class='feature-card-title'>Hit Rate</div>", unsafe_allow_html=True)
+    row2 = st.columns(4)
+    for col, title in zip(row2, ["Last 5", "Last 10", "Last 15", "Season"]):
+        with col:
+            render_blur_card(title, small=True)
+
+def render_demo_context_tab():
+    st.markdown("<div class='feature-card-title'>Context</div>", unsafe_allow_html=True)
+    row = st.columns(4)
+    for col, title in zip(row, ["Projected Minutes", "Rest Days", "Home/Away", "Pace Proxy"]):
+        with col:
+            render_blur_card(title, small=True)
+    render_thin_line()
+    st.markdown("<div class='feature-card-title'>Comparable Picks</div>", unsafe_allow_html=True)
+    st.markdown('<div class="blur-box blur-block"></div>', unsafe_allow_html=True)
+
+def render_demo_stats_table(result):
+    st.markdown("<div class='feature-card-title'>Stats Table</div>", unsafe_allow_html=True)
+    controls = st.columns([1.12, 1.02, 1.18, 1.08])
+    with controls[0]:
+        st.toggle("Season Avg Line", value=True, disabled=True)
+    with controls[1]:
+        st.toggle("Prop Line", value=True, disabled=True)
+    with controls[2]:
+        st.toggle("Opponent-Specific", value=False, disabled=True)
+    with controls[3]:
+        st.selectbox("Window", ["Season", "Last 10", "All-Time"], index=0, disabled=True)
+    df = result["recent_df"][["Game Date","Matchup","W/L","MIN","PTS","REB","AST","Pick Result"]]
+    html = ['<div class="demo-table-wrap"><div class="demo-table-caption blur-block">Season Avg: 18.4 | Prop Line: 20.5</div><table class="demo-table blur-block"><thead><tr>']
+    for c in df.columns:
+        html.append(f"<th>{c}</th>")
+    html.append("</tr></thead><tbody>")
+    for _, row in df.iterrows():
+        html.append("<tr>" + "".join(f"<td>{row[c]}</td>" for c in df.columns) + "</tr>")
+    html.append("</tbody></table></div>")
+    st.markdown("".join(html), unsafe_allow_html=True)
+
+def render_analyze_tab():
+    render_section_title("Single Prop Analyzer")
     st.markdown(
         """
         <div class="demo-banner">
-            <div style="font-size:1.02rem;font-weight:800;color:#7a5c00;margin-bottom:6px;">
-                🔍 About This Demo
-            </div>
-            <div style="font-size:0.95rem;color:#5a4400;line-height:1.65;">
-                This is a <strong>public-facing demo</strong> of Propify — a private NBA player prop analytics platform.
-                The interface, layout, and data structure closely mirror the production system.
-                The production version includes a full probabilistic model built on real NBA data, pick tracking with a per-user database,
-                multi-leg parlay analysis (2–4 legs), and a complete performance dashboard.
-                <br><br>
-                This demo generates <strong>simulated outputs</strong> using a deterministic placeholder model — it is
-                not connected to any real data source. It exists to demonstrate the product's UI, output structure, and design, prior to Propify's official release.
+            <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Demo Notes</div>
+            <div class="demo-note">
+                This demo mirrors the real Propify layout while obscuring private analytics. Analyze is the only interactive workflow in the public build. 
+                Outputs are generated from a deterministic placeholder model and then intentionally blurred to protect proprietary logic. 
+                Full public release is planned for sometime in 2026.
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-
-def render_primary_card(label: str, value: str):
-    st.markdown(
-        f"""
-        <div class="primary-card">
-            <div class="label">{label}</div>
-            <div class="value">{value}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_secondary_card(label: str, value: str):
-    st.markdown(
-        f"""
-        <div class="secondary-card">
-            <div class="label">{label}</div>
-            <div class="value">{value}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def score_style(score, positive_good=True):
-    try:
-        score = float(score)
-    except Exception:
-        return "#f3f4f6", "N/A"
-    if positive_good:
-        if score >= 80: return COLORS["strong"], "Excellent"
-        if score >= 65: return "#e8f7ec", "Strong"
-        if score >= 45: return COLORS["neutral"], "Neutral"
-        if score >= 25: return "#fde7e7", "Weak"
-        return "#f7d4d4", "Poor"
-    else:
-        if score <= 14: return COLORS["strong"], "Excellent"
-        if score <= 24: return "#e8f7ec", "Strong"
-        if score <= 39: return COLORS["neutral"], "Neutral"
-        if score <= 59: return "#fde7e7", "Risky"
-        return "#f7d4d4", "Very Risky"
-
-
-def render_score_card(title: str, value, positive_good: bool = True):
-    bg, label = score_style(value, positive_good=positive_good)
-    st.markdown(
-        f"""
-        <div style="
-            background:{bg};
-            border-radius:16px;
-            padding:14px 16px;
-            min-height:110px;
-            box-shadow:0 3px 12px rgba(0,0,0,0.05);
-            border:1px solid rgba(0,0,0,0.06);
-        ">
-            <div style="font-size:0.88rem;font-weight:700;color:#122235;opacity:0.76;">{title}</div>
-            <div style="font-size:2.1rem;font-weight:900;margin-top:6px;color:#122235;">{value}</div>
-            <div style="font-size:0.82rem;font-weight:700;margin-top:4px;color:#122235;opacity:0.68;">{label}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_hit_rate_section(result: dict):
-    st.subheader("Hit Rates vs Line")
-    h1, h2, h3, h4 = st.columns(4)
-    with h1:
-        render_secondary_card("Last 5 Hit Rate", result["last5_hit_rate"])
-    with h2:
-        render_secondary_card("Last 10 Hit Rate", result["last10_hit_rate"])
-    with h3:
-        render_secondary_card("Last 15 Hit Rate", result["last15_hit_rate"])
-    with h4:
-        render_secondary_card("Season Hit Rate", result["season_hit_rate"])
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-
-def render_footer():
-    st.markdown(
-        f"""
-        <div style="
-            text-align:center;
-            padding: 28px 0 12px 0;
-            color:#8a9db5;
-            font-size:0.92rem;
-        ">
-            <strong style="color:#17344f;">Propify</strong> is a proprietary analytics platform.
-            This public repository contains a limited demo only.
-            <br>
-            <span style="opacity:0.65;">
-                © 2026 Davis Higgins. All rights reserved.
-            </span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# ─────────────────────────────────────────
-# Main single prop section
-# ─────────────────────────────────────────
-def render_single_section():
-    st.title("Single Prop Analyzer")
+    top = st.columns([7, 1, 1])
+    with top[1]:
+        if st.button("Clear", use_container_width=True):
+            st.session_state.demo_last_result = None
+            st.session_state.demo_last_inputs = {}
+            st.rerun()
+    with top[2]:
+        st.button("History", use_container_width=True, disabled=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        player = st.text_input("Player Name", placeholder="e.g. Jayson Tatum", key="single_player")
-        stat   = st.selectbox("Stat Type", STAT_OPTIONS, key="single_stat")
-        line_opts = [round(x * 0.5, 1) for x in range(1, 101)]
-        line = st.selectbox(
-            "Line",
-            line_opts,
-            index=line_opts.index(24.5) if 24.5 in line_opts else 47,
-            key="single_line",
-            format_func=lambda v: str(int(v)) if float(v).is_integer() else str(v),
-        )
+        player = st.selectbox("Player Name", PLAYER_OPTIONS, index=0)
+        stat = st.selectbox("Stat Type", STAT_OPTIONS, index=0)
+        line = st.number_input("Line", min_value=0.0, step=0.5, value=24.5)
+        opponent = st.selectbox("Opponent Team", TEAM_OPTIONS, index=0)
     with c2:
-        opponent = st.text_input("Opponent Team", placeholder="e.g. Heat", key="single_opponent")
-        st.text_area(
-            "Optional Notes",
-            placeholder="Examples: teammate out, back-to-back, starter tonight...",
-            key="single_notes",
-        )
+        st.number_input("Multiplier (optional)", min_value=0.0, step=0.1, value=0.0)
+        st.text_area("Optional Notes", placeholder="Examples: teammate out, back-to-back, starter tonight.")
+    st.markdown("<div style='height:1.35rem;'></div>", unsafe_allow_html=True)
+    if st.button("Analyze Single Prop", use_container_width=True):
+        st.session_state.demo_last_result = demo_model(player, stat, float(line), opponent)
+        st.session_state.demo_last_inputs = {"player": player, "stat": stat, "line": float(line), "opponent": opponent}
+        st.rerun()
+    st.markdown("<div style='height:1.2rem;'></div>", unsafe_allow_html=True)
 
-    submitted = st.button("Analyze Single Prop", use_container_width=True, key="analyze_btn")
-
-    st.markdown(
-        """
-        <div style="
-            margin-top: 10px;
-            padding: 10px 14px;
-            background: #fff3cd;
-            border: 1px solid #f0c040;
-            border-radius: 12px;
-            font-size: 0.92rem;
-            color: #7a5c00;
-            font-weight: 600;
-        ">
-            ⚠️ <em>All data that is generated below is randomized and purposefully inaccurate. Do not use.</em>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div style="margin-top:8px;font-size:0.88rem;color:#4a5568;font-style:italic;padding:4px 2px;">
-            This data generation resembles the layout of some data points displayed in the
-            private, soon to be monetized, official Propify platform.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if submitted:
-        if not player.strip() or not opponent.strip():
-            st.warning("Enter both a player name and opponent to generate the demo analysis.")
-            return
-
-        result = demo_model(player.strip(), stat, float(line), opponent.strip())
-        st.session_state["last_demo_result"] = result
-        st.session_state["last_demo_meta"]   = {
-            "player": player.strip(), "stat": stat,
-            "line": float(line), "opponent": opponent.strip(),
-        }
-
-    result   = st.session_state.get("last_demo_result")
-    meta     = st.session_state.get("last_demo_meta")
-
-    if not result or not meta:
+    result = st.session_state.demo_last_result
+    inputs = st.session_state.demo_last_inputs
+    if not result:
+        st.info("Run a demo analysis to preview the full single-prop layout.")
         return
 
-    st.markdown("<div class='fade-in'>", unsafe_allow_html=True)
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    render_play_summary(result, inputs["player"], inputs["stat"], inputs["line"])
+    render_blurred_primary_grid()
+    render_blurred_expander()
+    subtabs = st.tabs(["Projection & Scores", "Context & Risk", "Recent Sample"])
+    with subtabs[0]:
+        render_demo_scores_tab()
+    with subtabs[1]:
+        render_demo_context_tab()
+    with subtabs[2]:
+        render_demo_stats_table(result)
 
-    # ── Row 1: primary metrics ──────────────────────────────
-    top1, top2, top3, top4, top5 = st.columns(5)
-    with top1: render_primary_card("Projection", str(result["projection"]))
-    with top2: render_primary_card("Over %",     f"{result['over_prob']:.1f}%")
-    with top3: render_primary_card("Under %",    f"{result['under_prob']:.1f}%")
-    with top4: render_primary_card("Push %",     f"{result['push_prob']:.1f}%")
-    with top5: render_primary_card("Lean",       result["lean"])
-
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-
-    # ── Row 2: secondary metrics ────────────────────────────
-    sec1, sec2, sec3, sec4, sec5 = st.columns(5)
-    with sec1: render_secondary_card("Median",         str(result["median_projection"]))
-    with sec2: render_secondary_card("Floor (20th)",   str(result["floor_projection"]))
-    with sec3: render_secondary_card("Ceiling (80th)", str(result["ceiling_projection"]))
-    with sec4: render_secondary_card("Confidence",     result["confidence"])
-    with sec5: render_secondary_card("Model Version",  "PIE_v2")
-
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-
-    # ── Model Scores ────────────────────────────────────────
-    st.subheader("Model Scores")
-    s1, s2, s3, s4 = st.columns(4)
-    with s1: render_score_card("Recent Form Score",  result["recent_form_score"],  True)
-    with s2: render_score_card("Matchup Score",      result["matchup_score"],      True)
-    with s3: render_score_card("Volatility Score",   result["volatility_score"],   False)
-    with s4: render_score_card("Minutes Risk Score", result["minutes_risk_score"], False)
-
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-
-    # ── Hit Rates ───────────────────────────────────────────
-    render_hit_rate_section(result)
-
-    # ── Context ─────────────────────────────────────────────
-    st.subheader("Context")
-    cx1, cx2, cx3, cx4 = st.columns(4)
-    cx1.metric("Projected Minutes", result["projected_minutes"])
-    cx2.metric("Rest Days",         result["rest_days"])
-    cx3.metric("Home/Away",         result["home_away"])
-    cx4.metric("Pace Proxy",        result["pace_proxy"])
-
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-
-    # ── Key Statistics ──────────────────────────────────────
-    st.subheader("Key Statistics")
-    reasons = [
-        f"Season average: {result['season_average']:.2f}",
-        f"Season median: {result['season_median']:.2f}",
-        f"Weighted recent avg: {result['weighted_recent_average']:.2f}",
-        f"Last 5 average: {result['last5_average']:.2f}",
-        f"Last 10 average: {result['last10_average']:.2f}",
-        f"Last 15 average: {result['last15_average']:.2f}",
-        f"Projected minutes: {result['projected_minutes']}",
-        f"Minutes multiplier: {result['minutes_multiplier']}",
-        f"Matchup multiplier: {result['matchup_multiplier']}",
-        f"Opp allowance proxy: {result['opponent_allowance_proxy']}",
-        f"Season hit rate: {result['season_hit_rate']}",
-        f"Last 10 hit rate: {result['last10_hit_rate']}",
-        f"Last 5 hit rate: {result['last5_hit_rate']}",
-        f"Role: {result['role_stability_label']}",
-    ]
-    kcols = st.columns(4)
-    for i, item in enumerate(reasons):
-        with kcols[i % 4]:
-            st.write(f"• {item}")
-
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-
-    # ── Risk Flags ──────────────────────────────────────────
-    st.subheader("Risk Flags")
-    rcols = st.columns(4)
-    for i, item in enumerate(result["risks"]):
-        with rcols[i % 4]:
-            st.write(f"• {item}")
-
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-
-    # ── Charts ──────────────────────────────────────────────
-    vol = STAT_VOL.get(meta["stat"], 5.0)
-    recent_vals = result["recent_games_df"][meta["stat"]].values[:10][::-1]
-
-    ch1, ch2 = st.columns(2)
-    with ch1:
-        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-        trend_img = make_trend_chart(recent_vals, float(meta["line"]), meta["stat"])
-        st.image(trend_img, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-    with ch2:
-        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-        dist_img = make_distribution_chart(result["projection"], vol, float(meta["line"]), meta["stat"])
-        st.image(dist_img, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-
-    # ── Recent Sample ───────────────────────────────────────
-    st.subheader("Recent Sample")
-    sample_df = result["recent_games_df"].copy()
-
-    sc_left, sc_right = st.columns([5, 1])
-    with sc_right:
-        window = st.selectbox(
-            "Window",
-            ["Last 10", "Last 20", "Season"],
-            index=0,
-            key="demo_window",
-        )
-    if window == "Last 10":
-        display_df = sample_df.head(10)
-    elif window == "Last 20":
-        display_df = sample_df.head(20)
-    else:
-        display_df = sample_df
-
-    st.dataframe(display_df.reset_index(drop=True), use_container_width=True, hide_index=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────
-# App entry
-# ─────────────────────────────────────────
-inject_css()
-render_header()
-
-st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-render_demo_banner()
-
-tab_single, tab_about = st.tabs(["Single Prop Analyzer", "About Propify"])
-
-with tab_single:
-    render_single_section()
-
-with tab_about:
+def render_locked_parlay_tab(legs: int):
+    render_section_title(f"{legs}-Leg Parlay")
+    cols = st.columns(legs)
+    for i in range(legs):
+        with cols[i]:
+            st.markdown(f"<div class='feature-card-title'>Leg {i+1}</div>", unsafe_allow_html=True)
+            st.selectbox("Player Name", PLAYER_OPTIONS, index=min(i, len(PLAYER_OPTIONS)-1), key=f"p_{legs}_{i}")
+            st.selectbox("Stat Type", STAT_OPTIONS, index=0, key=f"s_{legs}_{i}")
+            st.selectbox("Side", ["OVER", "UNDER"], index=0, key=f"side_{legs}_{i}")
+            st.number_input("Line", min_value=0.0, step=0.5, value=10.5, key=f"line_{legs}_{i}")
+            st.selectbox("Opponent Team", TEAM_OPTIONS, index=i % len(TEAM_OPTIONS), key=f"opp_{legs}_{i}")
+    extra = st.columns(2)
+    with extra[0]:
+        st.number_input("Multiplier (optional)", min_value=0.0, step=0.1, value=0.0, key=f"mult_{legs}")
+    with extra[1]:
+        st.text_input("Notes", key=f"notes_{legs}")
+    st.markdown("<div style='height:1.2rem;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="disabled-analyze">', unsafe_allow_html=True)
+    st.button(f"Analyze {legs}-Leg Parlay", use_container_width=True, disabled=True, key=f"an_{legs}")
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown(
         """
-        ## About Propify
-
-        Propify is a privately developed NBA player prop analytics platform designed to identify
-        statistically favorable betting opportunities through probabilistic modeling and contextual game analysis.
-
-        **What the Propify production system includes:**
-        - A custom probabilistic projection engine using real NBA data
-        - Over/under probability outputs derived from engine-tailored modeling techniques
-        - Confidence scoring
-        - Matchup-based adjustments
-        - Volatility and minutes-risk metrics
-        - Trimmed mean calculations for accuracy
-        - 2–4 leg parlay builder with compounded probability outputs
-        - Full per-user pick tracking and performance dashboard
-        - Row-level security ensuring no shared data between accounts
-        - Dozens of currently private calculations, features, filters, details, visualizations, customization settings, and capabilities
-
-        **What this demo does not include:**
-        - Any real NBA data or live connections
-        - The proprietary model logic, weights, or feature engineering
-        - User authentication or pick tracking
-        - Parlay analysis
-        - Backend infrastructure
-
-        This demo is intentionally limited to the Single Prop Analyzer tab with
-        simulated outputs. The production codebase is private.
+        <div class="locked-overlay-inner" style="margin-top:0.85rem;">
+            <div class="locked-title">Parlay analysis is locked in the public demo</div>
+            <div class="locked-copy">This workflow is part of the private Propify platform. The public demo keeps the full layout visible, but the live parlay engine will open publicly sometime in 2026.</div>
+        </div>
         """,
+        unsafe_allow_html=True,
     )
+    st.markdown("<div style='height:0.95rem;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="locked-area"><div class="blur-box blur-block"></div>', unsafe_allow_html=True)
+    blur_preview_message("Private multi-leg output", "Parlay probabilities, leg summaries, sticky context, saved entries, and private grading features are intentionally hidden in the public demo.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-render_footer()
+def render_tracking_tab():
+    render_section_title("Pick Tracker")
+    st.markdown(
+        """
+        <div class="locked-overlay-inner" style="margin-bottom:1rem;">
+            <div class="locked-title">Tracking preview only</div>
+            <div class="locked-copy">Per-user tracking, grading history, ROI dashboards, and edit flows are part of the private build. Public access is planned for sometime in 2026.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    row = st.columns(4)
+    for c, label in zip(row, ["Record", "Win Rate", "Net Profit", "ROI"]):
+        with c:
+            render_blur_card(label, small=True)
+    st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:320px;"></div>', unsafe_allow_html=True)
+    blur_preview_message("Tracker dashboard preview", "Charts, pick editing, grading controls, and account-linked history are hidden in the public demo.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def render_learn_tab():
+    learn_about, learn_metrics, learn_faq = st.tabs(["How to Use Propify", "Metric Guide", "FAQs"])
+    with learn_about:
+        render_section_title("How to Use Propify")
+        st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:260px;"></div>', unsafe_allow_html=True)
+        blur_preview_message("Knowledge-base preview", "Educational content is shown here in the private build. The public demo keeps the layout visible while obscuring internal guidance.")
+        st.markdown("</div>", unsafe_allow_html=True)
+    with learn_metrics:
+        render_section_title("Metric Guide")
+        st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:360px;"></div>', unsafe_allow_html=True)
+        blur_preview_message("Metric guide preview", "The private metric guide explains every widget, probability, and risk signal in depth. The public demo shows the structure without the proprietary explanations.")
+        st.markdown("</div>", unsafe_allow_html=True)
+    with learn_faq:
+        render_section_title("FAQs")
+        st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:240px;"></div>', unsafe_allow_html=True)
+        blur_preview_message("FAQ preview", "Full support content and launch details will be published closer to release.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+def render_account_tab():
+    render_section_title("Account")
+    st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:220px;"></div>', unsafe_allow_html=True)
+    blur_preview_message("Account preview", "Authentication, account management, and saved picks stay private in the current build.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def main():
+    # replace placeholder icon in header template using logo file
+    if st.session_state.app_view == "home":
+        render_demo_home()
+        return
+
+    # header icon uses logo file as base64
+    render_header()
+    st.markdown(
+        """
+        <div class="demo-banner" style="margin-top:-0.6rem;">
+            <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Public Demo Preview</div>
+            <div class="demo-note">
+                This build is designed to mirror the structure and feel of the private Propify platform while protecting proprietary information. 
+                Only the Analyze workflow is interactive in the public preview. Parlay analysis, tracking, and account features remain locked until the broader public release, planned for sometime in 2026.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    tab_analyze, tab_parlays, tab_tracking, tab_learn, tab_account = st.tabs(["Analyze", "Parlays", "Tracking", "Learn", "Account"])
+    with tab_analyze:
+        render_analyze_tab()
+    with tab_parlays:
+        p2, p3, p4 = st.tabs(["2-Leg Parlay", "3-Leg Parlay", "4-Leg Parlay"])
+        with p2:
+            render_locked_parlay_tab(2)
+        with p3:
+            render_locked_parlay_tab(3)
+        with p4:
+            render_locked_parlay_tab(4)
+    with tab_tracking:
+        render_tracking_tab()
+    with tab_learn:
+        render_learn_tab()
+    with tab_account:
+        render_account_tab()
+
+# inject base64 icon into render_header template
+import base64
+icon_b64 = base64.b64encode(Path("proptrans.png").read_bytes()).decode("utf-8")
+# use only the top icon mark rather than full file? full transparent logo still works in tiny size.
+render_header.__defaults__ = ()
+# patch template literal content
+import inspect as _inspect
+# simple monkeypatch by redefining with formatted string
+def render_header():
+    left, right = st.columns([8.4, 1.6])
+    with left:
+        st.markdown(
+            f"""
+            <div class="demo-topbar">
+                <img src="data:image/png;base64,{icon_b64}" alt="Propify" />
+                <div class="demo-topbar-engine">Propify AI Engine Demo</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.markdown(
+            f"""<div class="demo-header-note">
+                <span class="demo-pill">Public Demo</span>
+                <span class="demo-pill">Private analytics blurred</span>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
+main()
