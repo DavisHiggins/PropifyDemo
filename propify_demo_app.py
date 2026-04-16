@@ -547,9 +547,8 @@ def render_analyze_tab():
         <div class="demo-banner">
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Demo Notes</div>
             <div class="demo-note">
-                This demo mirrors the real Propify layout while obscuring private analytics. Analyze is the only interactive workflow in the public build. 
-                Outputs are generated from a deterministic placeholder model and then intentionally blurred to protect proprietary logic. 
-                The full Propify platform is planned for public release sometime in 2026.
+                The Single Prop Analyzer engine, powered by multiple machine learning models, advanced statistical weighting, and real-time contextual adjustments, is the primary and most innovative tool in Propify, delivering precise projections, probability estimates, and actionable insights by integrating player performance trends, matchup dynamics, minutes modeling, and situational factors into a unified, data-driven decision framework. This build took the most time, has been through dozens of iterations, model refinements, and calculation upgrades, and was meticulously engineered and stress-tested to ensure accuracy, consistency, and reliability. 
+                Analyze a prop below to explore how the finished Propify app interface is structured and presents calculations. Demo outputs are generated from a deterministic placeholder model and intentionally blurred to protect proprietary logic. 
             </div>
         </div>
         """,
@@ -627,7 +626,7 @@ def render_tracking_tab():
         """
         <div class="locked-overlay-inner" style="margin-bottom:1rem;">
             <div class="locked-title">Tracking preview only</div>
-            <div class="locked-copy">Per-user tracking, grading history, ROI dashboards, and edit flows are shown here as part of the private product structure and workflow preview.</div>
+            <div class="locked-copy">Per-user pick tracking widgets are shown here as part of the private product structure and workflow preview.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -638,7 +637,7 @@ def render_tracking_tab():
             render_blur_card(label, small=True)
     st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
     st.markdown('<div class="locked-area"><div class="blur-box blur-block" style="min-height:320px;"></div>', unsafe_allow_html=True)
-    blur_preview_message("Tracker dashboard preview", "Charts, pick editing, grading controls, and account-linked history are hidden in the public demo.")
+    blur_preview_message("Tracker dashboard preview", "Charts, pick editing, grading controls, ROI dashboards, and account-linked history are hidden.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 def render_learn_tab():
@@ -679,7 +678,7 @@ def main():
             <div style="font-size:1.02rem;font-weight:800;color:#d8ecfb;margin-bottom:6px;">Public Demo Preview</div>
             <div class="demo-note">
                 This build mirrors the structure and feel of the private Propify platform while protecting proprietary information. 
-                Analyze is interactive in the public preview, while the other sections remain a product and workflow showcase.
+                The "Analyze" tab is interactive in the public preview, while the other sections remain a product and workflow showcase. The full Propify App and Propify AI platform is set to release by the end of the summer.
             </div>
         </div>
         """,
