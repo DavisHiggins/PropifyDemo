@@ -434,7 +434,7 @@ def render_demo_home():
             <img src="{propify_logo}" style="width: 460px; height: auto; display: block; margin: 0 auto 10px auto;" />
             <div style="
                 color: #7BAFD4;
-                font-size: 1.25rem;
+                font-size: 2rem;
                 font-weight: 800;
                 letter-spacing: 6px;
                 margin: 0 0 22px 0;
