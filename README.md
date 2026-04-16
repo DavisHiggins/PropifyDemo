@@ -1,46 +1,62 @@
-# Propify (Demo)
+# Propify Demo
 
-Propify (Demo) is a polished public-facing demonstration of a private sports analytics platform.
+Propify Demo is the public-facing preview of Propify, a private NBA player prop analytics platform.
 
+## What this demo is for
 
-## Purpose
+This build is designed to show the real Propify product structure without exposing proprietary analytics.
 
-This repository exists for:
-- product/UI demonstration
-- open source inspiration
-- personal profile display
+It mirrors the private application's:
+- home screen
+- header and navigation hierarchy
+- Analyze / Parlays / Tracking / Learn / Account layout
+- single-prop workflow
+- parlay workflow structure
+- dashboard and knowledge-base sections
 
-It is intentionally limited and does **not** expose the proprietary production system.
+## What is interactive
 
+The public demo intentionally allows only one live workflow:
 
-## Included
+- **Analyze** — users can enter a player, stat, line, and opponent to generate a deterministic demo analysis preview
 
-- Streamlit-based single prop analyzer demo
-- polished SaaS-style interface
-- simulated projection, probability, and chart outputs
-- clear product framing for public viewers
+Everything else is visible as a product preview, but locked:
 
+- Parlays
+- Tracking
+- Account features
+- private metric explanations
+- saved picks, grading, and account-linked data
 
-## Not Included
+## Why the results are blurred
 
-- proprietary model logic
-- real probability engine
-- user authentication
-- pick tracking
-- backend services
-- protected weights, data pipeline, and internal analytics
+The real Propify platform includes proprietary modeling, probability logic, tracking, and internal product features.
 
+To keep the public demo professional while protecting private work, most analytical values are intentionally blurred. The public demo focuses on:
+- UI
+- information architecture
+- product flow
+- visual polish
 
-## Tech Stack
+## Release framing
+
+This demo communicates that the full Propify platform is planned for broader public release sometime in **2026**, while keeping the exact release window private.
+
+## Tech stack
 
 - Python
 - Streamlit
 - NumPy
 - Pandas
-- Matplotlib
-
 
 ## Notes
 
 This repository is a **public demo only**.
-The production version of Propify is private.
+
+It does **not** include:
+- the private production model
+- private data pipelines
+- authentication logic
+- per-user tracking backend
+- protected model weights
+- internal release-only features
